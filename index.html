@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#111318">
+    <title>ASTRA Health | Medical Console</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+<main class="desktop">
+<section class="console" id="console">
+    <i class="screw tl"></i><i class="screw tr"></i><i class="screw bl"></i><i class="screw br"></i>
+
+    <!-- BARRA DE TÍTULO ESTILO WINAMP -->
+    <header class="titlebar" id="titlebar">
+        <div class="brand">
+            <div class="brand-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h5l2-6 4 12 2-6h7"/></svg>
+            </div>
+            <div>
+                <h1>ASTRA <span>HEALTH</span></h1>
+                <small>[ MODELO DE SISTEMA: HW-WINAMP-98 ]</small>
+            </div>
+        </div>
+
+        <div class="grip" aria-hidden="true"></div>
+
+        <div class="titlebar-right">
+            <div class="system-status">
+                <span class="status-light"></span>
+                <span class="green-text" id="pwr-label">PWR ONLINE</span>
+            </div>
+            <div class="win-buttons">
+                <button class="win-btn" id="btn-shade" type="button" title="Contraer consola" aria-label="Contraer consola" aria-pressed="false">
+                    <svg viewBox="0 0 12 12" width="11" height="11"><path d="M2 8h8" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                </button>
+                <button class="win-btn" id="btn-power" type="button" title="Encender / apagar pantallas" aria-label="Encender o apagar pantallas" aria-pressed="false">
+                    <svg viewBox="0 0 12 12" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 1v5"/><path d="M3.2 3.2a4 4 0 1 0 5.6 0"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="console-workspace" id="console-workspace">
+
+        <!-- RIEL DE MÓDULOS -->
+        <nav class="module-sidebar" aria-label="Módulos del sistema">
+            <span class="sidebar-label">MÓDULOS</span>
+
+            <button class="module-button" data-module="monitoring" type="button" title="Monitoreo" aria-label="Monitoreo" aria-pressed="false">
+                <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8h3l2-5 3 10 2-5h4"/></svg>
+                <span class="sidebar-text">MONITOR</span>
+            </button>
+
+            <button class="module-button" data-module="history" type="button" title="Historial" aria-label="Historial" aria-pressed="false">
+                <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 14V8M6 14V3M10 14V6M14 14V10"/></svg>
+                <span class="sidebar-text">HISTORIAL</span>
+            </button>
+
+            <button class="module-button" data-module="alerts" type="button" title="Alertas" aria-label="Alertas" aria-pressed="false">
+                <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l7 12H1z"/><path d="M8 6.5v3.5M8 12v.4"/></svg>
+                <span class="sidebar-text">ALERTAS</span>
+                <span class="nav-badge" id="alert-count" hidden>0</span>
+            </button>
+
+            <button class="module-button" data-module="wellbeing" type="button" title="Bienestar" aria-label="Bienestar" aria-pressed="false">
+                <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 10.2A5.2 5.2 0 1 1 5.8 3.5a4.2 4.2 0 0 0 6.7 6.7z"/></svg>
+                <span class="sidebar-text">BIENESTAR</span>
+            </button>
+
+            <button class="module-button" data-module="profile" type="button" title="Perfil" aria-label="Perfil" aria-pressed="false">
+                <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="5" r="3"/><path d="M2 14c1-4.5 11-4.5 12 0"/></svg>
+                <span class="sidebar-text">PERFIL</span>
+            </button>
+
+            <button class="module-button" data-module="settings" type="button" title="Ajustes" aria-label="Ajustes" aria-pressed="false">
+                <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/><circle cx="5" cy="4" r="1.6" fill="#15191f"/><circle cx="11" cy="8" r="1.6" fill="#15191f"/><circle cx="6.5" cy="12" r="1.6" fill="#15191f"/></svg>
+                <span class="sidebar-text">AJUSTES</span>
+            </button>
+        </nav>
+
+        <!-- CAJÓN LATERAL -->
+        <aside class="module-drawer" id="module-drawer" aria-hidden="true" aria-labelledby="drawer-title">
+            <header class="drawer-header">
+                <div>
+                    <small>ASTRA / MÓDULO</small>
+                    <h2 id="drawer-title">MÓDULO DEL SISTEMA</h2>
+                </div>
+                <button class="drawer-close" id="close-drawer" type="button" aria-label="Cerrar módulo">✕</button>
+            </header>
+            <div class="drawer-content" id="drawer-content"></div>
+            <footer class="drawer-footer">
+                <span class="status-dot"></span>
+                <span>MÓDULO LOCAL</span>
+            </footer>
+        </aside>
+
+        <!-- PANEL PRINCIPAL -->
+        <div class="console-main" id="console-main">
+
+            <div class="simulation-banner">
+                <span class="warning-icon" aria-hidden="true">⚠</span>
+                <span>MODO SIMULACIÓN ACTIVO — VALORES GENERADOS POR HARDWARE VIRTUAL. HERRAMIENTA EDUCATIVA, NO APTA PARA USO CLÍNICO REAL NI DIAGNÓSTICO.</span>
+                <span class="badge-source">ID: SIM-BIO-AST01</span>
+            </div>
+
+            <section class="mission-bar" aria-label="Estado de la misión">
+                <div><small>TRIPULANTE</small><strong>AST-001 (COMANDANTE)</strong></div>
+                <div><small>MISIÓN / DÍA</small><strong>ARTEMIS-SIM · D042</strong></div>
+                <div><small>ORIGEN DE DATOS</small><strong class="amber-text">SIMULADOR BIO-VEST v2</strong></div>
+                <div><small>ÚLTIMA LECTURA</small><strong id="last-sync-time">HACE 0s</strong></div>
+                <div><small>ENLACE TIERRA (RETARDO)</small><strong class="blue-text">~1.3 s · AUTÓNOMO</strong></div>
+                <div><small>ESTADO GLOBAL</small><strong id="global-status" class="green-text">● VITALES NOMINALES</strong></div>
+            </section>
+
+            <div class="ticker" aria-hidden="true"><div class="ticker-track" id="ticker-track"></div></div>
+
+            <div class="dash-grid">
+
+                <!-- COLUMNA IZQUIERDA -->
+                <div class="col-left">
+
+                    <section class="section-block">
+                        <div class="section-heading">
+                            <span>01 / MONITORIZACIÓN FISIOLÓGICA</span>
+                            <span class="section-decoration">TIEMPO REAL · AUTOEVALUACIÓN</span>
+                        </div>
+
+                        <div class="monitoring-grid">
+                            <article class="metric-card main-gauge-card" data-metric="hr">
+                                <div class="metric-header-mini">
+                                    <span>FRECUENCIA CARDÍACA</span>
+                                    <span class="badge-status" data-badge>NOMINAL</span>
+                                </div>
+                                <div class="circular-gauge-container">
+                                    <svg class="gauge-svg" viewBox="0 0 160 160" aria-hidden="true">
+                                        <circle class="gauge-ticks" cx="80" cy="80" r="75" pathLength="100"/>
+                                        <circle class="gauge-bg" cx="80" cy="80" r="62" />
+                                        <circle class="gauge-progress" id="hr-gauge-circle" cx="80" cy="80" r="62" pathLength="100"/>
+                                        <circle class="gauge-segments" cx="80" cy="80" r="62" pathLength="100"/>
+                                    </svg>
+                                    <div class="gauge-center-content">
+                                        <span class="lcd lcd-xl"><span class="lcd-ghost" aria-hidden="true">888</span><span class="lcd-val" id="hr-value">72</span></span>
+                                        <span class="gauge-unit">BPM</span>
+                                        <span class="gauge-pulse-icon" aria-hidden="true">♥</span>
+                                    </div>
+                                </div>
+                                <div class="metric-meta">
+                                    <span>RANGO NORMAL: 60 - 100 BPM</span>
+                                    <span id="hr-avg">PROMEDIO 1H: 71 BPM</span>
+                                </div>
+                            </article>
+
+                            <div class="vitals-subgrid">
+                                <article class="metric-card" data-metric="bp" style="--ok: var(--blue-glow)">
+                                    <div class="metric-header-mini"><span>PRESIÓN ARTERIAL</span><span class="badge-status" data-badge>NOMINAL</span></div>
+                                    <div class="lcd-row">
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">888/888</span><span class="lcd-val"><span id="bp-sys">118</span>/<span id="bp-dia">78</span></span></span>
+                                        <span class="lcd-unit">mmHg</span>
+                                    </div>
+                                    <div class="bar-sparkline" id="bp-spark" aria-label="Tendencia sistólica"></div>
+                                    <div class="metric-meta"><span>RANGO: &lt;130 / &lt;85</span><span>FUENTE: MANGUITO BIO-SUIT</span></div>
+                                </article>
+
+                                <article class="metric-card" data-metric="spo2">
+                                    <div class="metric-header-mini"><span>SpO<sub>2</sub> · SATURACIÓN</span><span class="badge-status" data-badge>NOMINAL</span></div>
+                                    <div class="lcd-row">
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">888.8</span><span class="lcd-val" data-lcd>98.5</span></span>
+                                        <span class="lcd-unit">%</span>
+                                    </div>
+                                    <div class="seg-bar"><div class="seg-fill" data-bar></div></div>
+                                    <div class="metric-meta"><span>RANGO: ≥ 95 %</span><span>FUENTE: OXÍMETRO CASCO</span></div>
+                                </article>
+
+                                <article class="metric-card" data-metric="temp">
+                                    <div class="metric-header-mini"><span>TEMPERATURA CORPORAL</span><span class="badge-status" data-badge>NOMINAL</span></div>
+                                    <div class="lcd-row">
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">88.8</span><span class="lcd-val" data-lcd>36.7</span></span>
+                                        <span class="lcd-unit">°C</span>
+                                    </div>
+                                    <div class="seg-bar"><div class="seg-fill" data-bar></div></div>
+                                    <div class="metric-meta"><span>RANGO: 36.0 - 37.5 °C</span><span>FUENTE: PARCHE DÉRMICO</span></div>
+                                </article>
+
+                                <article class="metric-card" data-metric="rr" style="--ok: var(--blue-glow)">
+                                    <div class="metric-header-mini"><span>FREC. RESPIRATORIA</span><span class="badge-status" data-badge>NOMINAL</span></div>
+                                    <div class="lcd-row">
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">88</span><span class="lcd-val" data-lcd>15</span></span>
+                                        <span class="lcd-unit">rpm</span>
+                                    </div>
+                                    <div class="seg-bar"><div class="seg-fill" data-bar></div></div>
+                                    <div class="metric-meta"><span>RANGO: 12 - 20 rpm</span><span>FUENTE: BANDA TORÁCICA</span></div>
+                                </article>
+
+                                <article class="metric-card" data-metric="co2" style="--ok: var(--blue-glow)">
+                                    <div class="metric-header-mini"><span>ppCO<sub>2</sub> AMBIENTE</span><span class="badge-status" data-badge>NOMINAL</span></div>
+                                    <div class="lcd-row">
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">8.8</span><span class="lcd-val" data-lcd>2.2</span></span>
+                                        <span class="lcd-unit">mmHg</span>
+                                    </div>
+                                    <div class="seg-bar"><div class="seg-fill" data-bar></div></div>
+                                    <div class="metric-meta"><span>UMBRAL SIM: &lt; 3.0 mmHg</span><span>FUENTE: SENSOR NDIR CASCO</span></div>
+                                </article>
+
+                                <article class="metric-card" data-metric="hyd" style="--ok: var(--blue-glow)">
+                                    <div class="metric-header-mini"><span>ÍNDICE HIDRATACIÓN</span><span class="badge-status" data-badge>NOMINAL</span></div>
+                                    <div class="lcd-row">
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">888</span><span class="lcd-val" data-lcd>88</span></span>
+                                        <span class="lcd-unit">%</span>
+                                    </div>
+                                    <div class="seg-bar"><div class="seg-fill" data-bar></div></div>
+                                    <div class="metric-meta"><span>RANGO: ≥ 75 %</span><span>FUENTE: BALANCE ESTIMADO</span></div>
+                                </article>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="section-block">
+                        <div class="section-heading">
+                            <span>02 / OSCILOSCOPIO ECG Y ACTIVIDAD</span>
+                            <span class="section-decoration">CANAL BIO-01 | LEAD II</span>
+                        </div>
+
+                        <div class="scope-row">
+                            <div class="monitor-panel" id="ecg-panel">
+                                <div class="monitor-header">
+                                    <span>SEÑAL ECG SIMULADA</span>
+                                    <span>BANDA: 0.5 - 40 Hz</span>
+                                    <span class="green-text" id="ecg-state">● SEÑAL ESTABLE</span>
+                                </div>
+                                <div class="ecg-container"><canvas id="ecg-canvas" aria-label="Electrocardiograma simulado"></canvas></div>
+                                <div class="monitor-footer">
+                                    <span>AMPLITUD VIRTUAL: 1.2 mV</span>
+                                    <span>MUESTREO: 250 Hz</span>
+                                    <span>ORIGEN: GENERADOR INTERNO</span>
+                                </div>
+                            </div>
+
+                            <div class="monitor-panel analyzer-panel">
+                                <div class="monitor-header"><span>ESPECTRO ACTIVIDAD (SIM)</span></div>
+                                <div class="ecg-container analyzer"><canvas id="bio-canvas" aria-hidden="true"></canvas></div>
+                                <div class="monitor-footer"><span>24 BANDAS</span><span>DECORATIVO</span></div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="section-block">
+                        <div class="section-heading">
+                            <span>03 / CONTROL DE SIMULACIÓN</span>
+                            <span class="section-decoration">INYECTOR DE ESCENARIOS</span>
+                        </div>
+
+                        <div class="control-panel">
+                            <div class="scenario-grid" role="group" aria-label="Escenarios de simulación">
+                                <button class="scn-btn is-on" type="button" data-scenario="normal">NORMAL</button>
+                                <button class="scn-btn" type="button" data-scenario="hypoxia">HIPOXIA</button>
+                                <button class="scn-btn" type="button" data-scenario="tachy">TAQUICARDIA</button>
+                                <button class="scn-btn" type="button" data-scenario="dehydration">DESHIDRATAC.</button>
+                                <button class="scn-btn" type="button" data-scenario="co2">CO₂ ALTO</button>
+                                <button class="scn-btn" type="button" data-scenario="fever">HIPERTERMIA</button>
+                                <button class="scn-btn" type="button" data-scenario="fatigue">FATIGA / HUESO</button>
+                                <button class="scn-btn" type="button" data-scenario="radiation">RADIACIÓN SPE</button>
+                            </div>
+
+                            <div class="eq-row">
+                                <label for="eva-slider">CARGA EVA</label>
+                                <input type="range" id="eva-slider" class="eq-slider" min="0" max="100" value="0" step="1">
+                                <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">888</span><span class="lcd-val" id="eva-value">0</span></span><span class="lcd-unit">%</span>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- COLUMNA DERECHA: ESCÁNER CORPORAL -->
+                <aside class="col-right" aria-label="Escáner corporal">
+                    <section class="section-block">
+                        <div class="section-heading">
+                            <span>04 / ESCÁNER CORPORAL</span>
+                            <span class="section-decoration" id="body-summary">SIN ANOMALÍAS</span>
+                        </div>
+
+                        <div class="body-panel monitor-panel">
+                            <div class="body-stage" id="body-stage" data-rad="ok">
+                                <svg id="body-svg" viewBox="0 0 280 420" role="group" aria-label="Mapa corporal con zonas de riesgo probable">
+                                    <rect class="scanline" x="0" y="0" width="280" height="2"/>
+
+                                    <g transform="translate(40,0)">
+                                        <!-- silueta decorativa del torso -->
+                                        <path class="body-outline" d="M92 70 L66 78 Q58 81 57 90 L58 128 Q60 160 70 190 L72 205 L128 205 L130 190 Q140 160 142 128 L143 90 Q142 81 134 78 L108 70"/>
+
+                                        <!-- 04 ABDOMEN -->
+                                        <g class="zone" data-zone="abdomen" tabindex="0" role="button" aria-label="Abdomen y core">
+                                            <path class="zone-shape" d="M73 148 Q71 172 73 196 L127 196 Q129 172 127 148 Q100 154 73 148 Z"/>
+                                        </g>
+
+                                        <!-- 02 PULMONES -->
+                                        <g class="zone" data-zone="lungs" tabindex="0" role="button" aria-label="Pulmones">
+                                            <path class="zone-shape" d="M96 92 C88 88 76 92 72 104 C68 118 68 132 72 140 C78 144 90 142 96 136 Z"/>
+                                            <path class="zone-shape" d="M104 92 C112 88 124 92 128 104 C132 118 132 132 128 140 C122 144 110 142 104 136 Z"/>
+                                        </g>
+
+                                        <!-- 03 CORAZÓN -->
+                                        <g class="zone" data-zone="heart" tabindex="0" role="button" aria-label="Corazón">
+                                            <path class="zone-shape" d="M112 136 C100 127 98 118 102 112 C106 107 111 109 112 114 C113 109 118 107 122 112 C126 118 124 127 112 136 Z"/>
+                                        </g>
+
+                                        <!-- 06 COLUMNA Y CADERA -->
+                                        <g class="zone" data-zone="spine" tabindex="0" role="button" aria-label="Columna y cadera">
+                                            <path class="zone-shape" d="M72 198 L128 198 Q134 210 130 228 L112 242 L100 236 L88 242 L70 228 Q66 210 72 198 Z"/>
+                                            <line class="zone-line" x1="100" y1="74" x2="100" y2="196" stroke-width="7" stroke-dasharray="6 3"/>
+                                        </g>
+
+                                        <!-- 05 BRAZOS -->
+                                        <g class="zone" data-zone="arms" tabindex="0" role="button" aria-label="Brazos y manos">
+                                            <path class="zone-shape" d="M58 82 C48 83 41 90 40 102 L36 148 C35 160 33 172 30 186 L28 206 C28 212 34 214 38 212 C42 210 44 206 44 200 L47 186 C50 172 52 160 53 148 L60 112 Z"/>
+                                            <path class="zone-shape" d="M142 82 C152 83 159 90 160 102 L164 148 C165 160 167 172 170 186 L172 206 C172 212 166 214 162 212 C158 210 156 206 156 200 L153 186 C150 172 148 160 147 148 L140 112 Z"/>
+                                        </g>
+
+                                        <!-- 07 PIERNAS -->
+                                        <g class="zone" data-zone="legs" tabindex="0" role="button" aria-label="Piernas">
+                                            <path class="zone-shape" d="M72 236 C68 262 71 290 77 312 C77 332 77 352 79 372 L77 394 C71 399 67 402 67 407 L93 407 C93 400 92 395 91 390 L93 372 C95 352 95 332 95 312 C98 292 99 262 98 242 Z"/>
+                                            <path class="zone-shape" d="M128 236 C132 262 129 290 123 312 C123 332 123 352 121 372 L123 394 C129 399 133 402 133 407 L107 407 C107 400 108 395 109 390 L107 372 C105 352 105 332 105 312 C102 292 101 262 102 242 Z"/>
+                                        </g>
+
+                                        <!-- 01 CABEZA / OJOS -->
+                                        <g class="zone" data-zone="head" tabindex="0" role="button" aria-label="Cabeza y ojos">
+                                            <ellipse class="zone-shape" cx="100" cy="34" rx="19" ry="24"/>
+                                            <path class="zone-shape" d="M92 56 v14 h16 v-14"/>
+                                            <ellipse class="zone-detail" cx="93" cy="32" rx="3.2" ry="1.7"/>
+                                            <ellipse class="zone-detail" cx="107" cy="32" rx="3.2" ry="1.7"/>
+                                        </g>
+                                    </g>
+
+                                    <!-- ETIQUETAS IZQUIERDAS -->
+                                    <g class="zone-label" data-zone="head"><line class="leader" x1="62" y1="34" x2="121" y2="34"/><text class="zl-name" x="2" y="30">01 CABEZA</text><text class="zl-state" x="2" y="40">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="lungs"><line class="leader" x1="62" y1="104" x2="112" y2="104"/><text class="zl-name" x="2" y="100">02 PULMONES</text><text class="zl-state" x="2" y="110">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="abdomen"><line class="leader" x1="62" y1="172" x2="113" y2="172"/><text class="zl-name" x="2" y="168">04 ABDOMEN</text><text class="zl-state" x="2" y="178">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="legs"><line class="leader" x1="62" y1="330" x2="117" y2="330"/><text class="zl-name" x="2" y="326">07 PIERNAS</text><text class="zl-state" x="2" y="336">NOMINAL</text></g>
+
+                                    <!-- ETIQUETAS DERECHAS -->
+                                    <g class="zone-label" data-zone="heart"><line class="leader" x1="218" y1="122" x2="162" y2="122"/><text class="zl-name" x="278" y="118" text-anchor="end">03 CORAZÓN</text><text class="zl-state" x="278" y="128" text-anchor="end">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="arms"><line class="leader" x1="218" y1="178" x2="208" y2="178"/><text class="zl-name" x="278" y="174" text-anchor="end">05 BRAZOS</text><text class="zl-state" x="278" y="184" text-anchor="end">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="spine"><line class="leader" x1="218" y1="222" x2="170" y2="222"/><text class="zl-name" x="278" y="218" text-anchor="end">06 COLUMNA</text><text class="zl-state" x="278" y="228" text-anchor="end">NOMINAL</text></g>
+                                </svg>
+                            </div>
+
+                            <!-- RADIACIÓN -->
+                            <div class="rad-row" data-metric="dose">
+                                <div class="metric-header-mini"><span>RADIACIÓN · TASA DE DOSIS (SIM)</span><span class="badge-status" id="rad-badge" data-badge>NOMINAL</span></div>
+                                <div class="lcd-row">
+                                    <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">8888</span><span class="lcd-val" id="rad-value" data-lcd>22</span></span>
+                                    <span class="lcd-unit">µSv/h</span>
+                                </div>
+                                <div class="seg-bar"><div class="seg-fill" id="rad-bar" data-bar></div></div>
+                            </div>
+
+                            <!-- LECTURA DE ZONA -->
+                            <div class="zone-readout" id="zone-readout" aria-live="polite">
+                                <div class="zr-head">
+                                    <strong id="zr-title">ESCANEO CONTINUO</strong>
+                                    <span class="badge-status" id="zr-badge">NOMINAL</span>
+                                </div>
+                                <ul class="zr-list" id="zr-list"></ul>
+                                <p class="zr-block"><b>RIESGO NASA ASOCIADO</b><span id="zr-nasa"></span></p>
+                                <p class="zr-block"><b>PROBABLE CAUSA</b><span id="zr-cause"></span></p>
+                                <p class="zr-block"><b>ACCIÓN SUGERIDA (SIM)</b><span id="zr-action"></span></p>
+                                <div class="zr-buttons">
+                                    <button class="hw-btn" type="button" id="zone-auto" aria-pressed="true">AUTO ⟳</button>
+                                    <button class="hw-btn" type="button" id="zone-log">REGISTRAR EN BITÁCORA</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </aside>
+            </div>
+
+            <footer class="console-footer">
+                <span><span class="status-dot"></span> HARDWARE VIRTUAL OPERATIVO</span>
+                <span>ASTRA HEALTH v1.3.0</span>
+                <span>MET <b id="met-clock">042:00:00:00</b></span>
+                <span id="system-clock">00:00:00</span>
+            </footer>
+        </div>
+
+        <div class="standby" id="standby" hidden>STANDBY — PULSE ⏻ PARA ENCENDER</div>
+    </div>
+</section>
+</main>
+
+<script src="js/model.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/modules.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
