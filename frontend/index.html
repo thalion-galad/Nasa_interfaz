@@ -146,7 +146,7 @@
                                         <circle class="gauge-segments" cx="80" cy="80" r="62" pathLength="100"/>
                                     </svg>
                                     <div class="gauge-center-content">
-                                        <span class="lcd lcd-xl"><span class="lcd-ghost" aria-hidden="true">888</span><span class="lcd-val" id="hr-value">72</span></span>
+                                        <span class="lcd lcd-xl"><span class="lcd-ghost" aria-hidden="true">88</span><span class="lcd-val" id="hr-value">72</span></span>
                                         <span class="gauge-unit">BPM</span>
                                         <span class="gauge-pulse-icon" aria-hidden="true">♥</span>
                                     </div>
@@ -161,7 +161,7 @@
                                 <article class="metric-card" data-metric="bp" style="--ok: var(--blue-glow)">
                                     <div class="metric-header-mini"><span>PRESIÓN ARTERIAL</span><span class="badge-status" data-badge>NOMINAL</span></div>
                                     <div class="lcd-row">
-                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">888/888</span><span class="lcd-val"><span id="bp-sys">118</span>/<span id="bp-dia">78</span></span></span>
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">888/88</span><span class="lcd-val"><span id="bp-sys">118</span>/<span id="bp-dia">78</span></span></span>
                                         <span class="lcd-unit">mmHg</span>
                                     </div>
                                     <div class="bar-sparkline" id="bp-spark" aria-label="Tendencia sistólica"></div>
@@ -211,7 +211,7 @@
                                 <article class="metric-card" data-metric="hyd" style="--ok: var(--blue-glow)">
                                     <div class="metric-header-mini"><span>ÍNDICE HIDRATACIÓN</span><span class="badge-status" data-badge>NOMINAL</span></div>
                                     <div class="lcd-row">
-                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">888</span><span class="lcd-val" data-lcd>88</span></span>
+                                        <span class="lcd"><span class="lcd-ghost" aria-hidden="true">88</span><span class="lcd-val" data-lcd>88</span></span>
                                         <span class="lcd-unit">%</span>
                                     </div>
                                     <div class="seg-bar"><div class="seg-fill" data-bar></div></div>
@@ -271,7 +271,7 @@
                             <div class="eq-row">
                                 <label for="eva-slider">CARGA EVA</label>
                                 <input type="range" id="eva-slider" class="eq-slider" min="0" max="100" value="0" step="1">
-                                <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">888</span><span class="lcd-val" id="eva-value">0</span></span><span class="lcd-unit">%</span>
+                                <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">8</span><span class="lcd-val" id="eva-value">0</span></span><span class="lcd-unit">%</span>
                             </div>
                         </div>
                     </section>
@@ -292,48 +292,60 @@
 
                                     <g transform="translate(40,0)">
                                         <!-- silueta decorativa del torso -->
-                                        <path class="body-outline" d="M92 70 L66 78 Q58 81 57 90 L58 128 Q60 160 70 190 L72 205 L128 205 L130 190 Q140 160 142 128 L143 90 Q142 81 134 78 L108 70"/>
+                                        <path class="body-outline" d="M100 61 C86 61 76 67 69 77 C63 86 60 98 61 111 C62 133 66 155 70 175 L73 193 L127 193 L130 175 C134 155 138 133 139 111 C140 98 137 86 131 77 C124 67 114 61 100 61 Z"/>
+
+                                        <!-- detalles anatómicos -->
+                                        <g class="body-details" aria-hidden="true">
+                                            <path class="body-detail" d="M76 82 Q88 87 97 85"/>
+                                            <path class="body-detail" d="M124 82 Q112 87 103 85"/>
+                                            <line class="body-detail spine-hint" x1="100" y1="88" x2="100" y2="146"/>
+                                            <path class="body-detail" d="M92 170 Q100 173 108 170"/>
+                                            <path class="body-detail" d="M78 300 Q86 303 95 300"/>
+                                            <path class="body-detail" d="M105 300 Q114 303 122 300"/>
+                                        </g>
 
                                         <!-- 04 ABDOMEN -->
                                         <g class="zone" data-zone="abdomen" tabindex="0" role="button" aria-label="Abdomen y core">
-                                            <path class="zone-shape" d="M73 148 Q71 172 73 196 L127 196 Q129 172 127 148 Q100 154 73 148 Z"/>
+                                            <path class="zone-shape" d="M75 145 Q100 151 125 145 C128 160 128 178 125 192 Q100 199 75 192 C72 178 72 160 75 145 Z"/>
                                         </g>
 
                                         <!-- 02 PULMONES -->
                                         <g class="zone" data-zone="lungs" tabindex="0" role="button" aria-label="Pulmones">
-                                            <path class="zone-shape" d="M96 92 C88 88 76 92 72 104 C68 118 68 132 72 140 C78 144 90 142 96 136 Z"/>
-                                            <path class="zone-shape" d="M104 92 C112 88 124 92 128 104 C132 118 132 132 128 140 C122 144 110 142 104 136 Z"/>
+                                            <path class="zone-shape" d="M95 86 C88 80 77 82 73 92 C69 102 68 118 70 130 C71 137 77 140 84 137 C91 134 95 129 96 121 Z"/>
+                                            <path class="zone-shape" d="M105 86 C112 80 123 82 127 92 C131 102 132 118 130 130 C129 137 123 140 116 137 C109 134 105 129 104 121 Z"/>
                                         </g>
 
                                         <!-- 03 CORAZÓN -->
                                         <g class="zone" data-zone="heart" tabindex="0" role="button" aria-label="Corazón">
-                                            <path class="zone-shape" d="M112 136 C100 127 98 118 102 112 C106 107 111 109 112 114 C113 109 118 107 122 112 C126 118 124 127 112 136 Z"/>
+                                            <path class="zone-shape" d="M112 109 C105 104 98 108 99 115 C100 124 107 132 112 138 C117 132 124 124 125 115 C126 108 119 104 112 109 Z"/>
                                         </g>
 
                                         <!-- 06 COLUMNA Y CADERA -->
                                         <g class="zone" data-zone="spine" tabindex="0" role="button" aria-label="Columna y cadera">
-                                            <path class="zone-shape" d="M72 198 L128 198 Q134 210 130 228 L112 242 L100 236 L88 242 L70 228 Q66 210 72 198 Z"/>
-                                            <line class="zone-line" x1="100" y1="74" x2="100" y2="196" stroke-width="7" stroke-dasharray="6 3"/>
+                                            <path class="zone-shape" d="M74 193 Q100 200 126 193 C131 202 132 214 128 226 C119 233 110 236 100 236 C90 236 81 233 72 226 C68 214 69 202 74 193 Z"/>
+                                            <line class="zone-line" x1="100" y1="72" x2="100" y2="192" stroke-width="7" stroke-dasharray="6 3"/>
                                         </g>
 
                                         <!-- 05 BRAZOS -->
                                         <g class="zone" data-zone="arms" tabindex="0" role="button" aria-label="Brazos y manos">
-                                            <path class="zone-shape" d="M58 82 C48 83 41 90 40 102 L36 148 C35 160 33 172 30 186 L28 206 C28 212 34 214 38 212 C42 210 44 206 44 200 L47 186 C50 172 52 160 53 148 L60 112 Z"/>
-                                            <path class="zone-shape" d="M142 82 C152 83 159 90 160 102 L164 148 C165 160 167 172 170 186 L172 206 C172 212 166 214 162 212 C158 210 156 206 156 200 L153 186 C150 172 148 160 147 148 L140 112 Z"/>
+                                            <path class="zone-shape" d="M68 74 C57 78 50 88 48 100 L44 140 C42 154 39 168 36 182 L33 200 C32 208 38 212 42 209 C46 206 48 201 48 195 L51 182 C54 168 57 154 59 140 L66 104 Z"/>
+                                            <path class="zone-shape" d="M132 74 C143 78 150 88 152 100 L156 140 C158 154 161 168 164 182 L167 200 C168 208 162 212 158 209 C154 206 152 201 152 195 L149 182 C146 168 143 154 141 140 L134 104 Z"/>
                                         </g>
 
                                         <!-- 07 PIERNAS -->
                                         <g class="zone" data-zone="legs" tabindex="0" role="button" aria-label="Piernas">
-                                            <path class="zone-shape" d="M72 236 C68 262 71 290 77 312 C77 332 77 352 79 372 L77 394 C71 399 67 402 67 407 L93 407 C93 400 92 395 91 390 L93 372 C95 352 95 332 95 312 C98 292 99 262 98 242 Z"/>
-                                            <path class="zone-shape" d="M128 236 C132 262 129 290 123 312 C123 332 123 352 121 372 L123 394 C129 399 133 402 133 407 L107 407 C107 400 108 395 109 390 L107 372 C105 352 105 332 105 312 C102 292 101 262 102 242 Z"/>
+                                            <path class="zone-shape" d="M74 232 C69 254 71 278 76 300 C79 318 80 340 80 360 L80 389 C75 393 71 398 71 406 L95 406 C95 399 94 394 93 389 L94 360 C95 340 96 318 98 300 C102 278 103 254 99 238 Z"/>
+                                            <path class="zone-shape" d="M126 232 C131 254 129 278 124 300 C121 318 120 340 120 360 L120 389 C125 393 129 398 129 406 L105 406 C105 399 106 394 107 389 L106 360 C105 340 104 318 102 300 C98 278 97 254 101 238 Z"/>
                                         </g>
 
                                         <!-- 01 CABEZA / OJOS -->
                                         <g class="zone" data-zone="head" tabindex="0" role="button" aria-label="Cabeza y ojos">
-                                            <ellipse class="zone-shape" cx="100" cy="34" rx="19" ry="24"/>
-                                            <path class="zone-shape" d="M92 56 v14 h16 v-14"/>
-                                            <ellipse class="zone-detail" cx="93" cy="32" rx="3.2" ry="1.7"/>
-                                            <ellipse class="zone-detail" cx="107" cy="32" rx="3.2" ry="1.7"/>
+                                            <ellipse class="zone-shape" cx="100" cy="31" rx="18" ry="23"/>
+                                            <path class="zone-shape" d="M92 51 L90 63 Q100 68 110 63 L108 51 Z"/>
+                                            <ellipse class="zone-detail" cx="81" cy="33" rx="2.6" ry="5"/>
+                                            <ellipse class="zone-detail" cx="119" cy="33" rx="2.6" ry="5"/>
+                                            <ellipse class="zone-detail" cx="93" cy="29" rx="3.2" ry="1.7"/>
+                                            <ellipse class="zone-detail" cx="107" cy="29" rx="3.2" ry="1.7"/>
                                         </g>
                                     </g>
 
@@ -346,7 +358,7 @@
                                     <!-- ETIQUETAS DERECHAS -->
                                     <g class="zone-label" data-zone="heart"><line class="leader" x1="218" y1="122" x2="162" y2="122"/><text class="zl-name" x="278" y="118" text-anchor="end">03 CORAZÓN</text><text class="zl-state" x="278" y="128" text-anchor="end">NOMINAL</text></g>
                                     <g class="zone-label" data-zone="arms"><line class="leader" x1="218" y1="178" x2="208" y2="178"/><text class="zl-name" x="278" y="174" text-anchor="end">05 BRAZOS</text><text class="zl-state" x="278" y="184" text-anchor="end">NOMINAL</text></g>
-                                    <g class="zone-label" data-zone="spine"><line class="leader" x1="218" y1="222" x2="170" y2="222"/><text class="zl-name" x="278" y="218" text-anchor="end">06 COLUMNA</text><text class="zl-state" x="278" y="228" text-anchor="end">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="spine"><line class="leader" x1="218" y1="150" x2="142" y2="150"/><text class="zl-name" x="278" y="146" text-anchor="end">06 COLUMNA</text><text class="zl-state" x="278" y="156" text-anchor="end">NOMINAL</text></g>
                                 </svg>
                             </div>
 
@@ -354,7 +366,7 @@
                             <div class="rad-row" data-metric="dose">
                                 <div class="metric-header-mini"><span>RADIACIÓN · TASA DE DOSIS (SIM)</span><span class="badge-status" id="rad-badge" data-badge>NOMINAL</span></div>
                                 <div class="lcd-row">
-                                    <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">8888</span><span class="lcd-val" id="rad-value" data-lcd>22</span></span>
+                                    <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">88</span><span class="lcd-val" id="rad-value" data-lcd>22</span></span>
                                     <span class="lcd-unit">µSv/h</span>
                                 </div>
                                 <div class="seg-bar"><div class="seg-fill" id="rad-bar" data-bar></div></div>

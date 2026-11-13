@@ -67,6 +67,16 @@
         if (badge) badge.textContent = SEV_LABEL[sev];
     }
 
+    // Los dígitos fantasma deben tener la misma longitud y separadores que el valor visible.
+    function syncLcdGhosts() {
+        $$(".lcd").forEach(lcd => {
+            const val = $(".lcd-val", lcd);
+            const ghost = $(".lcd-ghost", lcd);
+            if (!val || !ghost) return;
+            ghost.textContent = val.textContent.trim().replace(/\d/g, "8");
+        });
+    }
+
     const hrHist = [];
     const sysHist = [];
     const sparkBars = [];
@@ -112,6 +122,8 @@
             ecgState.textContent = state.hr > 100 ? "● FREC. ELEVADA" : "● FREC. BAJA";
             ecgState.className = D.hr === 2 ? "red-text" : "amber-text";
         }
+
+        syncLcdGhosts();
     }
 
     /* ---------- 3. ESTADO GLOBAL, ALERTAS Y TICKER ---------- */
@@ -263,7 +275,9 @@
         if (!activeModule || !workspace.classList.contains("drawer-open")) return;
         if (!MODULES[activeModule].live && !force) return;
         if (!force && drawerContent.contains(document.activeElement)) return; // no robar el foco
+        const scrollTop = drawerContent.scrollTop;
         renderDrawer();
+        drawerContent.scrollTop = scrollTop;
     }
 
     function openModule(id, trigger) {
@@ -298,7 +312,9 @@
     });
 
     function rerenderKeepFocus(selector) {
+        const scrollTop = drawerContent.scrollTop;
         renderDrawer();
+        drawerContent.scrollTop = scrollTop;
         const again = $(selector, drawerContent);
         if (again) again.focus({ preventScroll: true });
     }
@@ -313,6 +329,22 @@
             logEvent(ui.mood === "bad" ? 1 : 0, `AUTOINFORME: ánimo ${{ good: "BIEN", ok: "REGULAR", bad: "MAL" }[ui.mood]}`);
             rerenderKeepFocus(`[data-mood="${ui.mood}"]`);
         }
+        else if (b.dataset.alertPriority) {
+            ui.alerts.priority = b.dataset.alertPriority;
+            logEvent(ui.alerts.priority === "critica" ? 1 : 0, `CONFIG ALERTAS: prioridad ${ALERT_PRIORITIES[ui.alerts.priority].label}`);
+            rerenderKeepFocus(`[data-alert-priority="${ui.alerts.priority}"]`);
+        }
+        else if (b.dataset.alertMethod) {
+            const key = b.dataset.alertMethod;
+            ui.alerts.methods[key] = !ui.alerts.methods[key];
+            rerenderKeepFocus(`[data-alert-method="${key}"]`);
+        }
+        else if (b.dataset.missionLink) {
+            ui.mission.link = b.dataset.missionLink;
+            const link = LINK_MODES[ui.mission.link];
+            logEvent(link.sev, `ENLACE TIERRA: modo ${link.label}`);
+            rerenderKeepFocus(`[data-mission-link="${ui.mission.link}"]`);
+        }
     });
 
     function applyFx() {
@@ -322,7 +354,48 @@
     }
     drawerContent.addEventListener("change", e => {
         const t = e.target;
-        if (t.dataset && t.dataset.fx) { ui.fx[t.dataset.fx] = t.checked; applyFx(); }
+        if (t.dataset && t.dataset.fx) { ui.fx[t.dataset.fx] = t.checked; applyFx(); return; }
+        if (t.dataset && t.dataset.alert) {
+            ui.alerts[t.dataset.alert] = t.checked;
+            if (t.dataset.alert === "enabled") {
+                logEvent(t.checked ? 0 : 1, `CONFIG ALERTAS: notificaciones ${t.checked ? "ACTIVADAS" : "SUSPENDIDAS"}`);
+                rerenderKeepFocus(`[data-alert="enabled"]`);
+            }
+            return;
+        }
+        if (t.dataset && t.dataset.mission) {
+            const field = t.dataset.mission;
+            if (field === "duration") {
+                const v = Math.max(1, Math.min(3650, Math.round(Number(t.value) || 1)));
+                ui.mission.duration = v;
+                t.value = String(v);
+                const out = $("[data-duration-out]", drawerContent);
+                if (out) out.textContent = String(v).padStart(3, "0");
+            } else if (field === "sync") {
+                ui.mission.sync = t.value;
+                rerenderKeepFocus(`[data-mission="sync"]`);
+            } else {
+                const val = t.value.trim();
+                if (field === "name") ui.mission.name = val || "ARTEMIS-SIM";
+                else if (field === "id") ui.mission.id = val || "AST-MSN-042";
+                else ui.mission[field] = val;
+                t.value = ui.mission[field];
+            }
+        }
+    });
+
+    drawerContent.addEventListener("input", e => {
+        const t = e.target;
+        if (!t.dataset || !t.dataset.mission) return;
+        const field = t.dataset.mission;
+        ui.mission[field] = t.value;
+        if (field === "duration") {
+            const out = $("[data-duration-out]", drawerContent);
+            if (out) {
+                const v = Math.max(0, Math.min(3650, Math.round(Number(t.value) || 0)));
+                out.textContent = String(v).padStart(3, "0");
+            }
+        }
     });
 
     /* ---------- 7. CONTROL DE SIMULACIÓN ---------- */
@@ -345,6 +418,7 @@
     $("#eva-slider").addEventListener("input", e => {
         state.evaLoad = Number(e.target.value);
         $("#eva-value").textContent = state.evaLoad;
+        syncLcdGhosts();
     });
 
     /* ---------- 8. VENTANA: STANDBY / CONTRAER ---------- */
