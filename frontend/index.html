@@ -51,6 +51,8 @@
 
         <!-- RIEL DE MÓDULOS -->
         <nav class="module-sidebar" aria-label="Módulos del sistema">
+            <span class="sidebar-label">MÓDULOS</span>
+
             <button class="module-button" data-module="monitoring" type="button" title="Monitoreo" aria-label="Monitoreo" aria-pressed="false">
                 <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8h3l2-5 3 10 2-5h4"/></svg>
                 <span class="sidebar-text">MONITOR</span>
@@ -81,11 +83,6 @@
                 <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/><circle cx="5" cy="4" r="1.6" fill="#15191f"/><circle cx="11" cy="8" r="1.6" fill="#15191f"/><circle cx="6.5" cy="12" r="1.6" fill="#15191f"/></svg>
                 <span class="sidebar-text">AJUSTES</span>
             </button>
-
-            <button class="module-button" data-module="simulation" type="button" title="Simulación" aria-label="Simulación" aria-pressed="false">
-                <svg class="module-icon" viewBox="0 0 16 16" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 1.5h4M7 1.5v4.2L3.4 12a1.4 1.4 0 0 0 1.2 2.1h6.8a1.4 1.4 0 0 0 1.2-2.1L9 5.7V1.5"/><path d="M5.2 10.2h5.6"/></svg>
-                <span class="sidebar-text">SIMULACIÓN</span>
-            </button>
         </nav>
 
         <!-- CAJÓN LATERAL -->
@@ -114,10 +111,8 @@
             </div>
 
             <section class="mission-bar" aria-label="Estado de la misión">
-                <div><small>TRIPULANTE</small><strong>AST-001</strong></div>
-                <div><small>ROL</small><strong>COMANDANTE</strong></div>
-                <div><small>MISIÓN</small><strong>ARTEMIS-SIM</strong></div>
-                <div><small>DÍA</small><strong>D042</strong></div>
+                <div><small>TRIPULANTE</small><strong>AST-001 (COMANDANTE)</strong></div>
+                <div><small>MISIÓN / DÍA</small><strong>ARTEMIS-SIM · D042</strong></div>
                 <div><small>ORIGEN DE DATOS</small><strong class="amber-text">SIMULADOR BIO-VEST v2</strong></div>
                 <div><small>ÚLTIMA LECTURA</small><strong id="last-sync-time">HACE 0s</strong></div>
                 <div><small>ENLACE TIERRA (RETARDO)</small><strong class="blue-text">~1.3 s · AUTÓNOMO</strong></div>
@@ -133,7 +128,7 @@
 
                     <section class="section-block">
                         <div class="section-heading">
-                            <span>MONITORIZACIÓN FISIOLÓGICA</span>
+                            <span>01 / MONITORIZACIÓN FISIOLÓGICA</span>
                             <span class="section-decoration">TIEMPO REAL · AUTOEVALUACIÓN</span>
                         </div>
 
@@ -159,16 +154,6 @@
                                 <div class="metric-meta">
                                     <span>RANGO NORMAL: 60 - 100 BPM</span>
                                     <span id="hr-avg">PROMEDIO 1H: 71 BPM</span>
-                                </div>
-                                <div class="hr-trend">
-                                    <div class="hr-trend-head"><span>EVOLUCIÓN FC</span><span>ÚLTIMAS 12 H</span></div>
-                                    <svg class="hr-trend-svg" viewBox="0 0 200 48" preserveAspectRatio="none" role="img" aria-label="Evolución de la frecuencia cardíaca en las últimas 12 horas">
-                                        <line class="hr-trend-mid" x1="0" y1="24" x2="200" y2="24"></line>
-                                        <polygon class="hr-trend-area" id="hr-trend-area" points=""></polygon>
-                                        <polyline class="hr-trend-line" id="hr-trend-line" points=""></polyline>
-                                        <circle class="hr-trend-dot" id="hr-trend-dot" r="2.4" cx="0" cy="0"></circle>
-                                    </svg>
-                                    <div class="hr-trend-range"><span id="hr-trend-min">MÍN --</span><span id="hr-trend-max">MÁX --</span></div>
                                 </div>
                             </article>
 
@@ -238,7 +223,7 @@
 
                     <section class="section-block">
                         <div class="section-heading">
-                            <span>OSCILOSCOPIO ECG Y ACTIVIDAD</span>
+                            <span>02 / OSCILOSCOPIO ECG Y ACTIVIDAD</span>
                             <span class="section-decoration">CANAL BIO-01 | LEAD II</span>
                         </div>
 
@@ -247,11 +232,6 @@
                                 <div class="monitor-header">
                                     <span>SEÑAL ECG SIMULADA</span>
                                     <span>BANDA: 0.5 - 40 Hz</span>
-                                    <span class="signal-meter" id="ecg-signal" data-status="ok" title="Calidad de señal ECG">
-                                        <span class="signal-label">SEÑAL</span>
-                                        <span class="signal-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-                                        <b id="ecg-signal-text">ÓPTIMA</b>
-                                    </span>
                                     <span class="green-text" id="ecg-state">● SEÑAL ESTABLE</span>
                                 </div>
                                 <div class="ecg-container"><canvas id="ecg-canvas" aria-label="Electrocardiograma simulado"></canvas></div>
@@ -262,33 +242,46 @@
                                 </div>
                             </div>
 
-                            <div class="monitor-panel radio-panel">
-                                <div class="monitor-header">
-                                    <span>ESPECTRO RADIOELÉCTRICO</span>
-                                    <span class="green-text" id="radio-state">● ENLACE NOMINAL</span>
-                                </div>
-                                <div class="ecg-container analyzer radio-scope">
-                                    <canvas id="radio-canvas" role="img" aria-label="Espectro radioeléctrico simulado del enlace con Tierra"></canvas>
-                                </div>
-                                <div class="radio-readout">
-                                    <span>PORTADORA <b id="radio-carrier">8.41 GHz</b></span>
-                                    <span>TRÁFICO <b id="radio-traffic">VOZ + TELEMETRÍA</b></span>
-                                </div>
-                                <div class="monitor-footer">
-                                    <span id="radio-band">BANDA X</span>
-                                    <span id="radio-latency">LATENCIA 1.2 s</span>
-                                </div>
+                            <div class="monitor-panel analyzer-panel">
+                                <div class="monitor-header"><span>ESPECTRO ACTIVIDAD (SIM)</span></div>
+                                <div class="ecg-container analyzer"><canvas id="bio-canvas" aria-hidden="true"></canvas></div>
+                                <div class="monitor-footer"><span>24 BANDAS</span><span>DECORATIVO</span></div>
                             </div>
                         </div>
                     </section>
 
+                    <section class="section-block">
+                        <div class="section-heading">
+                            <span>03 / CONTROL DE SIMULACIÓN</span>
+                            <span class="section-decoration">INYECTOR DE ESCENARIOS</span>
+                        </div>
+
+                        <div class="control-panel">
+                            <div class="scenario-grid" role="group" aria-label="Escenarios de simulación">
+                                <button class="scn-btn is-on" type="button" data-scenario="normal">NORMAL</button>
+                                <button class="scn-btn" type="button" data-scenario="hypoxia">HIPOXIA</button>
+                                <button class="scn-btn" type="button" data-scenario="tachy">TAQUICARDIA</button>
+                                <button class="scn-btn" type="button" data-scenario="dehydration">DESHIDRATAC.</button>
+                                <button class="scn-btn" type="button" data-scenario="co2">CO₂ ALTO</button>
+                                <button class="scn-btn" type="button" data-scenario="fever">HIPERTERMIA</button>
+                                <button class="scn-btn" type="button" data-scenario="fatigue">FATIGA / HUESO</button>
+                                <button class="scn-btn" type="button" data-scenario="radiation">RADIACIÓN SPE</button>
+                            </div>
+
+                            <div class="eq-row">
+                                <label for="eva-slider">CARGA EVA</label>
+                                <input type="range" id="eva-slider" class="eq-slider" min="0" max="100" value="0" step="1">
+                                <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">8</span><span class="lcd-val" id="eva-value">0</span></span><span class="lcd-unit">%</span>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <!-- COLUMNA DERECHA: ESCÁNER CORPORAL -->
                 <aside class="col-right" aria-label="Escáner corporal">
                     <section class="section-block">
                         <div class="section-heading">
-                            <span>ESCÁNER CORPORAL</span>
+                            <span>04 / ESCÁNER CORPORAL</span>
                             <span class="section-decoration" id="body-summary">SIN ANOMALÍAS</span>
                         </div>
 
@@ -297,79 +290,74 @@
                                 <svg id="body-svg" viewBox="0 0 280 420" role="group" aria-label="Mapa corporal con zonas de riesgo probable">
                                     <rect class="scanline" x="0" y="0" width="280" height="2"/>
 
-                                    <!-- silueta de referencia -->
-                                    <g class="body-base" aria-hidden="true">
-                                        <path class="body-outline" d="M132 58 L148 58 L149 74 C145 78 135 78 131 74 Z"/>
-                                        <path class="body-outline" d="M112 82 C120 76 130 73 140 73 C150 73 160 76 168 82 C173 91 175 103 173 116 L168 148 C166 160 166 172 168 182 L172 200 C173 208 170 214 164 218 L158 222 C152 225 146 226 140 226 C134 226 128 225 122 222 L116 218 C110 214 107 208 108 200 L112 182 C114 172 114 160 112 148 L107 116 C105 103 107 91 112 82 Z"/>
-                                        <path class="body-outline" d="M112 84 C105 88 100 96 98 106 L92 160 C90 176 88 190 87 202 C86 210 89 216 94 216 C99 216 102 212 103 205 L106 190 C108 174 110 160 113 148 L116 110 Z"/>
-                                        <path class="body-outline" d="M168 84 C175 88 180 96 182 106 L188 160 C190 176 192 190 193 202 C194 210 191 216 186 216 C181 216 178 212 177 205 L174 190 C172 174 170 160 167 148 L164 110 Z"/>
-                                        <path class="body-outline" d="M120 224 C117 246 118 270 121 292 C123 312 123 336 123 356 L123 386 C119 390 115 394 115 401 L133 401 C134 394 133 390 131 386 L132 356 C133 336 134 312 137 292 C140 270 141 246 140 224 Z"/>
-                                        <path class="body-outline" d="M160 224 C163 246 162 270 159 292 C157 312 157 336 157 356 L157 386 C161 390 165 394 165 401 L147 401 C146 394 147 390 149 386 L148 356 C147 336 146 312 143 292 C140 270 139 246 140 224 Z"/>
-                                        <ellipse class="body-outline" cx="140" cy="36" rx="18" ry="22"/>
+                                    <g transform="translate(40,0)">
+                                        <!-- silueta decorativa del torso -->
+                                        <path class="body-outline" d="M100 61 C86 61 76 67 69 77 C63 86 60 98 61 111 C62 133 66 155 70 175 L73 193 L127 193 L130 175 C134 155 138 133 139 111 C140 98 137 86 131 77 C124 67 114 61 100 61 Z"/>
 
                                         <!-- detalles anatómicos -->
-                                        <path class="body-detail" d="M121 91 Q130 97 139 95"/>
-                                        <path class="body-detail" d="M159 91 Q150 97 141 95"/>
-                                        <path class="body-detail" d="M127 160 Q140 164 153 160"/>
-                                        <path class="body-detail" d="M129 178 Q140 181 151 178"/>
-                                        <path class="body-detail" d="M131 195 Q140 197 149 195"/>
-                                        <path class="body-detail" d="M124 300 Q128 303 132 300"/>
-                                        <path class="body-detail" d="M148 300 Q152 303 156 300"/>
-                                    </g>
+                                        <g class="body-details" aria-hidden="true">
+                                            <path class="body-detail" d="M76 82 Q88 87 97 85"/>
+                                            <path class="body-detail" d="M124 82 Q112 87 103 85"/>
+                                            <line class="body-detail spine-hint" x1="100" y1="88" x2="100" y2="146"/>
+                                            <path class="body-detail" d="M92 170 Q100 173 108 170"/>
+                                            <path class="body-detail" d="M78 300 Q86 303 95 300"/>
+                                            <path class="body-detail" d="M105 300 Q114 303 122 300"/>
+                                        </g>
 
-                                    <!-- 01 CABEZA / OJOS -->
-                                    <g class="zone" data-zone="head" tabindex="0" role="button" aria-label="Cabeza y ojos">
-                                        <ellipse class="zone-shape" cx="140" cy="36" rx="18" ry="22"/>
-                                        <path class="zone-shape" d="M132 58 L148 58 L149 74 C145 78 135 78 131 74 Z"/>
-                                        <ellipse class="zone-detail" cx="133" cy="38" rx="2.6" ry="5"/>
-                                        <ellipse class="zone-detail" cx="147" cy="38" rx="2.6" ry="5"/>
-                                        <ellipse class="zone-detail" cx="133" cy="33" rx="3" ry="1.6"/>
-                                        <ellipse class="zone-detail" cx="147" cy="33" rx="3" ry="1.6"/>
-                                    </g>
+                                        <!-- 04 ABDOMEN -->
+                                        <g class="zone" data-zone="abdomen" tabindex="0" role="button" aria-label="Abdomen y core">
+                                            <path class="zone-shape" d="M75 145 Q100 151 125 145 C128 160 128 178 125 192 Q100 199 75 192 C72 178 72 160 75 145 Z"/>
+                                        </g>
 
-                                    <!-- 02 PULMONES -->
-                                    <g class="zone" data-zone="lungs" tabindex="0" role="button" aria-label="Pulmones">
-                                        <path class="zone-shape" d="M134 94 C127 90 120 93 117 101 C114 111 115 126 117 136 C118 143 124 146 130 143 C135 140 136 133 136 124 Z"/>
-                                        <path class="zone-shape" d="M146 94 C153 90 160 93 163 101 C166 111 165 126 163 136 C162 143 156 146 150 143 C145 140 144 133 144 124 Z"/>
-                                    </g>
+                                        <!-- 02 PULMONES -->
+                                        <g class="zone" data-zone="lungs" tabindex="0" role="button" aria-label="Pulmones">
+                                            <path class="zone-shape" d="M95 86 C88 80 77 82 73 92 C69 102 68 118 70 130 C71 137 77 140 84 137 C91 134 95 129 96 121 Z"/>
+                                            <path class="zone-shape" d="M105 86 C112 80 123 82 127 92 C131 102 132 118 130 130 C129 137 123 140 116 137 C109 134 105 129 104 121 Z"/>
+                                        </g>
 
-                                    <!-- 03 CORAZÓN -->
-                                    <g class="zone" data-zone="heart" tabindex="0" role="button" aria-label="Corazón">
-                                        <path class="zone-shape" d="M131 112 C125 108 118 111 119 118 C120 126 126 134 131 140 C136 134 142 126 143 118 C144 111 137 108 133 112 Z"/>
-                                    </g>
+                                        <!-- 03 CORAZÓN -->
+                                        <g class="zone" data-zone="heart" tabindex="0" role="button" aria-label="Corazón">
+                                            <path class="zone-shape" d="M112 109 C105 104 98 108 99 115 C100 124 107 132 112 138 C117 132 124 124 125 115 C126 108 119 104 112 109 Z"/>
+                                        </g>
 
-                                    <!-- 04 ABDOMEN -->
-                                    <g class="zone" data-zone="abdomen" tabindex="0" role="button" aria-label="Abdomen y core">
-                                        <path class="zone-shape" d="M120 148 C128 145 152 145 160 148 C163 162 163 180 160 194 C152 199 128 199 120 194 C117 180 117 162 120 148 Z"/>
-                                    </g>
+                                        <!-- 06 COLUMNA Y CADERA -->
+                                        <g class="zone" data-zone="spine" tabindex="0" role="button" aria-label="Columna y cadera">
+                                            <path class="zone-shape" d="M74 193 Q100 200 126 193 C131 202 132 214 128 226 C119 233 110 236 100 236 C90 236 81 233 72 226 C68 214 69 202 74 193 Z"/>
+                                            <line class="zone-line" x1="100" y1="72" x2="100" y2="192" stroke-width="7" stroke-dasharray="6 3"/>
+                                        </g>
 
-                                    <!-- 05 BRAZOS -->
-                                    <g class="zone" data-zone="arms" tabindex="0" role="button" aria-label="Brazos y manos">
-                                        <path class="zone-shape" d="M112 84 C105 88 100 96 98 106 L92 160 C90 176 88 190 87 202 C86 210 89 216 94 216 C99 216 102 212 103 205 L106 190 C108 174 110 160 113 148 L116 110 Z"/>
-                                        <path class="zone-shape" d="M168 84 C175 88 180 96 182 106 L188 160 C190 176 192 190 193 202 C194 210 191 216 186 216 C181 216 178 212 177 205 L174 190 C172 174 170 160 167 148 L164 110 Z"/>
-                                    </g>
+                                        <!-- 05 BRAZOS -->
+                                        <g class="zone" data-zone="arms" tabindex="0" role="button" aria-label="Brazos y manos">
+                                            <path class="zone-shape" d="M68 74 C57 78 50 88 48 100 L44 140 C42 154 39 168 36 182 L33 200 C32 208 38 212 42 209 C46 206 48 201 48 195 L51 182 C54 168 57 154 59 140 L66 104 Z"/>
+                                            <path class="zone-shape" d="M132 74 C143 78 150 88 152 100 L156 140 C158 154 161 168 164 182 L167 200 C168 208 162 212 158 209 C154 206 152 201 152 195 L149 182 C146 168 143 154 141 140 L134 104 Z"/>
+                                        </g>
 
-                                    <!-- 06 COLUMNA Y CADERA -->
-                                    <g class="zone" data-zone="spine" tabindex="0" role="button" aria-label="Columna y cadera">
-                                        <path class="zone-shape" d="M118 198 Q140 204 162 198 C166 208 166 218 162 228 C154 234 146 236 140 236 C134 236 126 234 118 228 C114 218 114 208 118 198 Z"/>
-                                        <line class="zone-line" x1="140" y1="78" x2="140" y2="196" stroke-width="7" stroke-dasharray="6 3"/>
-                                    </g>
+                                        <!-- 07 PIERNAS -->
+                                        <g class="zone" data-zone="legs" tabindex="0" role="button" aria-label="Piernas">
+                                            <path class="zone-shape" d="M74 232 C69 254 71 278 76 300 C79 318 80 340 80 360 L80 389 C75 393 71 398 71 406 L95 406 C95 399 94 394 93 389 L94 360 C95 340 96 318 98 300 C102 278 103 254 99 238 Z"/>
+                                            <path class="zone-shape" d="M126 232 C131 254 129 278 124 300 C121 318 120 340 120 360 L120 389 C125 393 129 398 129 406 L105 406 C105 399 106 394 107 389 L106 360 C105 340 104 318 102 300 C98 278 97 254 101 238 Z"/>
+                                        </g>
 
-                                    <!-- 07 PIERNAS -->
-                                    <g class="zone" data-zone="legs" tabindex="0" role="button" aria-label="Piernas">
-                                        <path class="zone-shape" d="M120 224 C117 246 118 270 121 292 C123 312 123 336 123 356 L123 386 C119 390 115 394 115 401 L133 401 C134 394 133 390 131 386 L132 356 C133 336 134 312 137 292 C140 270 141 246 140 224 Z"/>
-                                        <path class="zone-shape" d="M160 224 C163 246 162 270 159 292 C157 312 157 336 157 356 L157 386 C161 390 165 394 165 401 L147 401 C146 394 147 390 149 386 L148 356 C147 336 146 312 143 292 C140 270 139 246 140 224 Z"/>
+                                        <!-- 01 CABEZA / OJOS -->
+                                        <g class="zone" data-zone="head" tabindex="0" role="button" aria-label="Cabeza y ojos">
+                                            <ellipse class="zone-shape" cx="100" cy="31" rx="18" ry="23"/>
+                                            <path class="zone-shape" d="M92 51 L90 63 Q100 68 110 63 L108 51 Z"/>
+                                            <ellipse class="zone-detail" cx="81" cy="33" rx="2.6" ry="5"/>
+                                            <ellipse class="zone-detail" cx="119" cy="33" rx="2.6" ry="5"/>
+                                            <ellipse class="zone-detail" cx="93" cy="29" rx="3.2" ry="1.7"/>
+                                            <ellipse class="zone-detail" cx="107" cy="29" rx="3.2" ry="1.7"/>
+                                        </g>
                                     </g>
 
                                     <!-- ETIQUETAS IZQUIERDAS -->
-                                    <g class="zone-label" data-zone="head"><line class="leader" x1="62" y1="34" x2="124" y2="34"/><text class="zl-name" x="2" y="30">01 CABEZA</text><text class="zl-state" x="2" y="40">NOMINAL</text></g>
-                                    <g class="zone-label" data-zone="lungs"><line class="leader" x1="62" y1="112" x2="118" y2="112"/><text class="zl-name" x="2" y="108">02 PULMONES</text><text class="zl-state" x="2" y="118">NOMINAL</text></g>
-                                    <g class="zone-label" data-zone="abdomen"><line class="leader" x1="62" y1="172" x2="118" y2="172"/><text class="zl-name" x="2" y="168">04 ABDOMEN</text><text class="zl-state" x="2" y="178">NOMINAL</text></g>
-                                    <g class="zone-label" data-zone="legs"><line class="leader" x1="62" y1="330" x2="123" y2="330"/><text class="zl-name" x="2" y="326">07 PIERNAS</text><text class="zl-state" x="2" y="336">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="head"><line class="leader" x1="62" y1="34" x2="121" y2="34"/><text class="zl-name" x="2" y="30">01 CABEZA</text><text class="zl-state" x="2" y="40">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="lungs"><line class="leader" x1="62" y1="104" x2="112" y2="104"/><text class="zl-name" x="2" y="100">02 PULMONES</text><text class="zl-state" x="2" y="110">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="abdomen"><line class="leader" x1="62" y1="172" x2="113" y2="172"/><text class="zl-name" x="2" y="168">04 ABDOMEN</text><text class="zl-state" x="2" y="178">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="legs"><line class="leader" x1="62" y1="330" x2="117" y2="330"/><text class="zl-name" x="2" y="326">07 PIERNAS</text><text class="zl-state" x="2" y="336">NOMINAL</text></g>
 
                                     <!-- ETIQUETAS DERECHAS -->
-                                    <g class="zone-label" data-zone="heart"><line class="leader" x1="218" y1="122" x2="144" y2="122"/><text class="zl-name" x="278" y="118" text-anchor="end">03 CORAZÓN</text><text class="zl-state" x="278" y="128" text-anchor="end">NOMINAL</text></g>
-                                    <g class="zone-label" data-zone="arms"><line class="leader" x1="218" y1="178" x2="190" y2="178"/><text class="zl-name" x="278" y="174" text-anchor="end">05 BRAZOS</text><text class="zl-state" x="278" y="184" text-anchor="end">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="heart"><line class="leader" x1="218" y1="122" x2="162" y2="122"/><text class="zl-name" x="278" y="118" text-anchor="end">03 CORAZÓN</text><text class="zl-state" x="278" y="128" text-anchor="end">NOMINAL</text></g>
+                                    <g class="zone-label" data-zone="arms"><line class="leader" x1="218" y1="178" x2="208" y2="178"/><text class="zl-name" x="278" y="174" text-anchor="end">05 BRAZOS</text><text class="zl-state" x="278" y="184" text-anchor="end">NOMINAL</text></g>
                                     <g class="zone-label" data-zone="spine"><line class="leader" x1="218" y1="150" x2="142" y2="150"/><text class="zl-name" x="278" y="146" text-anchor="end">06 COLUMNA</text><text class="zl-state" x="278" y="156" text-anchor="end">NOMINAL</text></g>
                                 </svg>
                             </div>
@@ -391,6 +379,9 @@
                                     <span class="badge-status" id="zr-badge">NOMINAL</span>
                                 </div>
                                 <ul class="zr-list" id="zr-list"></ul>
+                                <p class="zr-block"><b>RIESGO NASA ASOCIADO</b><span id="zr-nasa"></span></p>
+                                <p class="zr-block"><b>PROBABLE CAUSA</b><span id="zr-cause"></span></p>
+                                <p class="zr-block"><b>ACCIÓN SUGERIDA (SIM)</b><span id="zr-action"></span></p>
                                 <div class="zr-buttons">
                                     <button class="hw-btn" type="button" id="zone-auto" aria-pressed="true">AUTO ⟳</button>
                                     <button class="hw-btn" type="button" id="zone-log">REGISTRAR EN BITÁCORA</button>
@@ -417,7 +408,6 @@
 <script src="js/model.js"></script>
 <script src="js/canvas.js"></script>
 <script src="js/modules.js"></script>
-<script src="js/notifications.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

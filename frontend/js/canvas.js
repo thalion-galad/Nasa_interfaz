@@ -86,95 +86,58 @@ function createEcg(canvas) {
     };
 }
 
-function createRadioSpectrum(canvas) {
-    const BINS = 28, GAP = 1, SEG_H = 3, SEG_GAP = 1;
-    const st = { w: 0, h: 0, dpr: 1, t: 0, carrier: 17, burst: 0.6 };
-    const heights = new Float32Array(BINS);
-    const peaks = new Float32Array(BINS);
-    const targets = new Float32Array(BINS);
+function createAnalyzer(canvas) {
+    const BARS = 24, GAP = 2, SEG_H = 4, SEG_GAP = 1;
+    const st = { w: 0, h: 0, dpr: 1, reset: true, t: 0 };
+    const heights = new Float32Array(BARS);
+    const peaks = new Float32Array(BARS);
+    const targets = new Float32Array(BARS);
     const ctx = canvas.getContext("2d");
-    const REFRESH = REDUCED_MOTION ? 1.2 : 0.12;   // s entre actualizaciones del espectro
+    const REFRESH = REDUCED_MOTION ? 1.2 : 0.11; // s entre nuevos objetivos
 
     return function frame(dt, p) {
         if (!fitCanvas(canvas, st)) return;
         const W = st.w, H = st.h;
-        const link = p.link || 0;
-        const level = p.level == null ? 0.6 : p.level;
 
         st.t += dt;
         if (st.t >= REFRESH) {
             st.t = 0;
-            st.carrier = link === 2 ? 9 : link === 1 ? 13 : 17;
-            st.burst = 0.35 + Math.random() * 0.65;   // tráfico de la llamada
-
-            for (let i = 0; i < BINS; i++) {
-                const d = i - st.carrier;
-                const carrierPeak = Math.exp(-(d * d) / 3.4) * (1 - link * 0.2);
-                const sideBands = (Math.exp(-((d - 3) ** 2) / 1.2) + Math.exp(-((d + 3) ** 2) / 1.2)) * 0.32;
-                const noiseFloor = (0.06 + link * 0.11) * (0.4 + Math.random() * 1.1);
-                targets[i] = clamp01(noiseFloor + (carrierPeak * (0.55 + st.burst * 0.45) + sideBands) * level);
+            for (let i = 0; i < BARS; i++) {
+                const shape = 1 - (i / BARS) * 0.55;
+                targets[i] = Math.max(0, Math.min(1, p.level * shape * (0.35 + Math.random() * 0.95)));
             }
         }
-
-        const k = Math.min(1, dt * (REDUCED_MOTION ? 3 : 14));
-        for (let i = 0; i < BINS; i++) {
+        const k = Math.min(1, dt * (REDUCED_MOTION ? 3 : 12));
+        for (let i = 0; i < BARS; i++) {
             heights[i] += (targets[i] - heights[i]) * k;
             peaks[i] = Math.max(peaks[i] - dt * 0.35, heights[i]);
         }
 
         ctx.setTransform(st.dpr, 0, 0, st.dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
-
-        const color = link === 2 ? "#ff3b3b" : link === 1 ? "#ffb000" : "#00e1ff";
-        const barW = (W - GAP * (BINS - 1)) / BINS;
-        const step = SEG_H + SEG_GAP;
-        const segs = Math.max(1, Math.floor(H / step));
-
-        // Línea de portadora del enlace.
-        const cx = st.carrier * (barW + GAP) + barW / 2;
-        ctx.save();
-        ctx.globalAlpha = 0.35;
-        ctx.strokeStyle = color;
-        ctx.setLineDash([2, 3]);
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx, 0);
-        ctx.lineTo(cx, H);
-        ctx.stroke();
-        ctx.restore();
-
-        // Barras segmentadas estilo analizador; el pico central es la portadora.
-        for (let i = 0; i < BINS; i++) {
+        const barW = (W - GAP * (BARS - 1)) / BARS;
+        const segs = Math.floor(H / (SEG_H + SEG_GAP));
+        for (let i = 0; i < BARS; i++) {
             const x = i * (barW + GAP);
             const lit = Math.round(heights[i] * segs);
             for (let s = 0; s < lit; s++) {
-                ctx.globalAlpha = 0.4 + (s / segs) * 0.6;
-                ctx.fillStyle = color;
-                ctx.fillRect(x, H - (s + 1) * step, barW, SEG_H);
+                const f = s / segs;
+                ctx.fillStyle = f < 0.6 ? "#00ff66" : f < 0.85 ? "#ffb000" : "#ff3b3b";
+                ctx.fillRect(x, H - (s + 1) * (SEG_H + SEG_GAP), barW, SEG_H);
             }
-            ctx.globalAlpha = 1;
             const ps = Math.min(segs - 1, Math.round(peaks[i] * segs));
             if (ps > 0) {
                 ctx.fillStyle = "#cfd8e3";
-                ctx.fillRect(x, H - (ps + 1) * step, barW, SEG_H);
+                ctx.fillRect(x, H - (ps + 1) * (SEG_H + SEG_GAP), barW, SEG_H);
             }
         }
-
-        // Etiqueta de frecuencia de portadora.
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.8;
-        ctx.font = "8px 'Share Tech Mono', monospace";
-        ctx.fillText("fc", Math.min(W - 9, cx + 3), 9);
-        ctx.globalAlpha = 1;
     };
 }
 
-function clamp01(v) { return Math.max(0, Math.min(1, v)); }
-
-/* Bucle único. getParams() -> { running, hr, color, noise, level, link } */
-function startCanvases(ecgCanvas, radioCanvas, getParams) {
+/* Bucle único. getParams() -> { running, hr, color, noise, level } */
+function startCanvases(ecgCanvas, bioCanvas, getParams) {
     const ecg = ecgCanvas ? createEcg(ecgCanvas) : null;
-    const radio = radioCanvas ? createRadioSpectrum(radioCanvas) : null;
+    const bio = bioCanvas ? createAnalyzer(bioCanvas) : null;
     let last = performance.now();
 
     function loop(now) {
@@ -183,7 +146,7 @@ function startCanvases(ecgCanvas, radioCanvas, getParams) {
         const p = getParams();
         if (p.running) {
             if (ecg) ecg(dt, p);
-            if (radio) radio(dt, p);
+            if (bio) bio(dt, p);
         }
         requestAnimationFrame(loop);
     }
