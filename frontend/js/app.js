@@ -1,9 +1,14 @@
 /* =========================================================
    ASTRA HEALTH · APLICACIÓN
    Un único estado (model.js) -> render() actualiza toda la UI.
-   Depende de: model.js, canvas.js, modules.js
+   Depende de: model.js, canvas.js, modules.js (y backend.js para telemetría/API)
    ========================================================= */
 "use strict";
+
+// Conexión inicial de telemetría (el botón de bitácora se maneja más abajo, en un único listener)
+document.addEventListener("DOMContentLoaded", () => {
+    if (typeof backend !== "undefined") backend.connectTelemetry();
+});
 
 (() => {
     const $ = (s, r = document) => r.querySelector(s);
@@ -72,7 +77,7 @@
         $$(".lcd").forEach(lcd => {
             const val = $(".lcd-val", lcd);
             const ghost = $(".lcd-ghost", lcd);
-            if (!val || !ghost) return;
+            if (!val || !ghost || !val.textContent) return;
             ghost.textContent = val.textContent.trim().replace(/\d/g, "8");
         });
     }
@@ -88,9 +93,11 @@
 
     function renderMetrics() {
         // Frecuencia cardíaca + medidor segmentado
-        $("#hr-value").textContent = r0(state.hr);
+        const hrValEl = $("#hr-value");
+        if (hrValEl) hrValEl.textContent = r0(state.hr);
         const frac = clamp((state.hr - 40) / 100, 0, 1);
-        $("#hr-gauge-circle").style.strokeDashoffset = String(100 - frac * 100);
+        const hrGaugeEl = $("#hr-gauge-circle");
+        if (hrGaugeEl) hrGaugeEl.style.strokeDashoffset = String(100 - frac * 100);
         setSev(cards.hr, D.hr);
 
         hrHist.push(state.hr); if (hrHist.length > 1800) hrHist.shift();
@@ -234,16 +241,44 @@
     });
     $("#zone-auto").addEventListener("click", () => { autoMode = true; renderBody(); });
 
+    /* Único listener de la bitácora: registra localmente y luego envía a la API REST */
     let logTimer = null;
-    $("#zone-log").addEventListener("click", e => {
-        const id = autoMode ? (worstZone(computeZones(D)) || {}).id : selectedZone;
+    $("#zone-log").addEventListener("click", async e => {
         const btn = e.currentTarget;
-        if (id) logEvent(computeZones(D)[id].sev, `BITÁCORA: ${ZONES[id].name} — ${SEV_LABEL[computeZones(D)[id].sev]}`);
+        if (btn.disabled) return;
+
+        const Z = computeZones(D);
+        const id = autoMode ? (worstZone(Z) || {}).id : selectedZone;
+        const zoneName = id ? ZONES[id].name : "Sistema General";
+
+        // 1. Registro local
+        if (id) logEvent(Z[id].sev, `BITÁCORA: ${zoneName} — ${SEV_LABEL[Z[id].sev]}`);
         else logEvent(0, "BITÁCORA: escaneo corporal sin anomalías");
-        btn.textContent = "REGISTRADO ✓";
-        clearTimeout(logTimer);
-        logTimer = setTimeout(() => { btn.textContent = "REGISTRAR EN BITÁCORA"; }, 1500);
         refreshDrawer(true);
+
+        // 2. Envío al backend (si existe)
+        clearTimeout(logTimer);
+        let label = "REGISTRADO ✓";
+        if (typeof backend !== "undefined") {
+            btn.disabled = true;
+            btn.textContent = "TRANSMITIENDO...";
+            try {
+                const result = await backend.saveZoneLog({
+                    zone: zoneName,
+                    action: $("#zr-action").textContent
+                });
+                label = result ? "REGISTRADO ✓" : "FALLO DE RED";
+            } catch (err) {
+                label = "FALLO DE RED";
+            }
+        }
+
+        // 3. Feedback único y restauración
+        btn.textContent = label;
+        logTimer = setTimeout(() => {
+            btn.textContent = "REGISTRAR EN BITÁCORA";
+            btn.disabled = false;
+        }, 3000);
     });
 
     /* ---------- 5. RENDER GENERAL Y SIMULACIÓN ---------- */
@@ -258,7 +293,12 @@
 
     function tick() {
         if (!powered) return;
-        stepState();
+
+        // Solo ejecutar la simulación si no hay telemetría real
+        if (typeof backend === "undefined" || !backend.isConnected) {
+            stepState();
+        }
+
         lastUpdate = Date.now();
         render();
     }
