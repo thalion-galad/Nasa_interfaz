@@ -43,7 +43,10 @@
             const prev = logged[k] || 0;
             if (D[k] === prev) return;
             const info = METRIC_INFO[k];
-            if (D[k] > prev) logEvent(D[k], `${info.label} ${info.fmt()} → ${SEV_LABEL[D[k]]}`);
+            if (D[k] > prev) {
+                logEvent(D[k], `${info.label} ${info.fmt()} → ${SEV_LABEL[D[k]]}`);
+                if (typeof notifyAlert === "function") notifyAlert(k, D[k]);
+            }
             else if (D[k] === 0) logEvent(0, `${info.label} vuelve a NOMINAL`);
             else logEvent(D[k], `${info.label} baja a ${SEV_LABEL[D[k]]}`);
             logged[k] = D[k];
@@ -125,6 +128,92 @@
         }
 
         syncLcdGhosts();
+        renderHrTrend();
+        renderEcgSignal();
+    }
+
+    /* Evolución de la FC con las últimas lecturas persistidas (sin generar datos). */
+    function renderHrTrend() {
+        const line = $("#hr-trend-line");
+        const area = $("#hr-trend-area");
+        const dot = $("#hr-trend-dot");
+        if (!line || !area || !dot) return;
+
+        const rows = Array.isArray(backend.cache.history) ? backend.cache.history : [];
+        const values = rows
+            .map(m => (m && isNum(m.hr) ? m.hr : null))
+            .filter(isNum)
+            .slice(-12);
+
+        // La última lectura en vivo sustituye al último punto del historial.
+        if (isNum(state.hr)) {
+            if (values.length === 0) values.push(state.hr);
+            else values[values.length - 1] = state.hr;
+        }
+
+        if (values.length === 0) {
+            line.setAttribute("points", "");
+            area.setAttribute("points", "");
+            dot.setAttribute("visibility", "hidden");
+            $("#hr-trend-min").textContent = "MÍN —";
+            $("#hr-trend-max").textContent = "MÁX —";
+            return;
+        }
+
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        $("#hr-trend-min").textContent = `MÍN ${r0(min)}`;
+        $("#hr-trend-max").textContent = `MÁX ${r0(max)}`;
+
+        if (values.length < 2) {
+            line.setAttribute("points", "");
+            area.setAttribute("points", "");
+            dot.setAttribute("visibility", "hidden");
+            return;
+        }
+
+        const lo = min - 4, hi = max + 4, span = hi - lo || 1;
+        const W = 200, H = 48, pad = 4;
+        const pts = values.map((v, i) => {
+            const x = (i / (values.length - 1)) * W;
+            const y = pad + (1 - (v - lo) / span) * (H - pad * 2);
+            return [x, y];
+        });
+        const d = pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+        line.setAttribute("points", d);
+        area.setAttribute("points", `0,${H} ${d} ${W},${H}`);
+
+        const last = pts[pts.length - 1];
+        dot.setAttribute("visibility", "visible");
+        dot.setAttribute("cx", last[0].toFixed(1));
+        dot.setAttribute("cy", last[1].toFixed(1));
+    }
+
+    /* Calidad de señal ECG derivada del estado actual (indicador visual). */
+    function renderEcgSignal() {
+        const box = $("#ecg-signal");
+        const text = $("#ecg-signal-text");
+        if (!box || !text) return;
+
+        const bars = $$(".signal-bars i", box);
+
+        if (!state.ready) {
+            box.dataset.status = "warn";
+            box.title = "Calidad de señal ECG: sin datos";
+            text.textContent = "SIN DATOS";
+            bars.forEach(bar => bar.classList.remove("is-on"));
+            return;
+        }
+
+        const noise = (D.spo2 || 0) * 0.35 + (state.evaLoad || 0) / 100 * 0.5;
+        const level = clamp(
+            Math.round(5 - noise * 4 - (D.hr === 2 ? 1 : D.hr === 1 ? 0.4 : 0)),
+            1, 5
+        );
+        box.dataset.status = level >= 4 ? "ok" : level >= 3 ? "warn" : "alert";
+        box.title = `Calidad de señal ECG: ${["", "crítica", "débil", "regular", "buena", "óptima"][level]}`;
+        text.textContent = ["", "CRÍTICA", "DÉBIL", "REGULAR", "BUENA", "ÓPTIMA"][level];
+        bars.forEach((bar, i) => bar.classList.toggle("is-on", i < level));
     }
 
     /* ---------- 3. ESTADO GLOBAL, MISIÓN Y ORIGEN ---------- */
@@ -152,21 +241,73 @@
             tickerTrack.textContent = `*** ${head} *** DATOS PERSISTIDOS EN SQLITE — TELEMETRÍA VÍA REST + WEBSOCKET *** NO USO CLÍNICO *** `;
             ticker.dataset.status = SEV_KEY[maxSev];
         }
+
+        renderRadio();
+    }
+
+    /* Estado del enlace mostrado junto al espectro: solo refleja la conexión real. */
+    function renderRadio() {
+        const stateEl = $("#radio-state");
+        if (!stateEl) return;
+
+        const connected = backend.isConnected;
+        const ready = state.ready;
+        const sev = connected && ready ? 0 : ready ? 1 : connected ? 1 : 2;
+
+        stateEl.textContent = connected && ready
+            ? "● ENLACE ACTIVO"
+            : connected
+                ? "● ESPERANDO DATOS"
+                : ready
+                    ? "● MODO REST"
+                    : "● SIN ENLACE";
+        stateEl.className = ["green-text", "amber-text", "red-text"][sev];
+
+        const band = $("#radio-band");
+        if (band) band.textContent = connected ? "CANAL: WEBSOCKET" : ready ? "CANAL: REST" : "CANAL: SIN CONEXIÓN";
+
+        const traffic = $("#radio-traffic");
+        if (traffic) traffic.textContent = connected ? "TELEMETRÍA EN VIVO" : ready ? "ÚLTIMA LECTURA REST" : "SIN TRÁFICO";
+
+        const carrier = $("#radio-carrier");
+        if (carrier) carrier.textContent = "REST + WEBSOCKET";
+
+        const ts = parseTs(state.timestamp);
+        const age = ts ? Math.max(0, Math.floor((Date.now() - ts.getTime()) / 1000)) : null;
+        const ageText = age === null
+            ? "SIN LECTURA"
+            : age < 60
+                ? `EDAD LECTURA ${age}s`
+                : age < 3600
+                    ? `EDAD LECTURA ${Math.floor(age / 60)} min`
+                    : `EDAD LECTURA ${Math.floor(age / 3600)} h`;
+
+        const latency = $("#radio-latency");
+        if (latency) latency.textContent = ageText;
+
+        const link = $("#link-latency");
+        if (link) {
+            link.textContent = connected
+                ? (age === null ? "ACTIVO · WS" : `ACTIVO · ${age}s`)
+                : ready
+                    ? "ÚLTIMA LECTURA REST"
+                    : "SIN ENLACE";
+        }
     }
 
     function renderMission() {
         const a = backend.cache.astronaut;
         const crew = $("#mission-crew");
+        const role = $("#mission-role");
         const mission = $("#mission-name");
+        const day = $("#mission-day");
         const source = $("#data-source");
 
-        if (a && crew) {
-            crew.textContent = `${a.code} (${a.role || "TRIPULANTE"})`.toUpperCase();
-        }
-
-        if (a && mission) {
-            const day = String(a.mission_day ?? 0).padStart(3, "0");
-            mission.textContent = `${a.mission || "—"} · D${day}`;
+        if (a) {
+            if (crew) crew.textContent = (a.code || "SIN DATOS").toUpperCase();
+            if (role) role.textContent = (a.role || "SIN DATOS").toUpperCase();
+            if (mission) mission.textContent = (a.mission || "SIN DATOS").toUpperCase();
+            if (day) day.textContent = `D${String(a.mission_day ?? 0).padStart(3, "0")}`;
         }
 
         if (source) {
@@ -343,6 +484,9 @@
         $("#zr-cause").textContent = "—";
         $("#zr-action").textContent = "—";
 
+        renderHrTrend();
+        renderEcgSignal();
+        renderRadio();
         renderMission();
         renderSource();
         refreshDrawer(false);
@@ -580,13 +724,14 @@
 
     backend.connectTelemetry();
 
-    startCanvases($("#ecg-canvas"), $("#bio-canvas"), () => ({
+    startCanvases($("#ecg-canvas"), $("#radio-canvas"), () => ({
         running: powered && !shaded && state.ready,
         hr: state.hr || 0,
         color: ["#00ff66", "#ffb000", "#ff3b3b"][D.hr || 0],
         noise: (D.spo2 || 0) * 0.3 + (state.evaLoad || 0) / 100 * 0.5,
         level: isNum(state.hr)
             ? clamp(0.25 + (state.hr - 60) / 120 * 0.4 + (state.evaLoad || 0) / 100 * 0.3, 0.2, 0.95)
-            : 0.2
+            : 0.2,
+        link: backend.isConnected ? (state.ready ? 0 : 1) : 2
     }));
 })();
