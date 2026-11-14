@@ -1,3 +1,11 @@
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Archivos ZIP de respaldo
+*.zip
+
 
 # Entornos virtuales
 venv/
