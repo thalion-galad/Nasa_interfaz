@@ -114,7 +114,7 @@ function htmlHistory() {
     return `
         <div class="module-head">
             <div>
-                <span class="module-kicker">02 / HISTORIAL</span>
+                <span class="module-kicker">HISTORIAL</span>
                 <h3>Historial y línea base</h3>
             </div>
             <span class="badge-status" ${sevStyle(curSev)}>${SEV_LABEL[curSev]}</span>
@@ -180,7 +180,7 @@ function htmlMonitoring() {
     return `
         <div class="module-head">
             <div>
-                <span class="module-kicker">01 / MONITOREO</span>
+                <span class="module-kicker">MONITOREO</span>
                 <h3>Monitoreo en tiempo real</h3>
             </div>
             <span class="badge-status" ${sevStyle(worst)}>${SEV_LABEL[worst]}</span>
@@ -207,7 +207,7 @@ function htmlAlerts() {
     return `
         <div class="module-head">
             <div>
-                <span class="module-kicker">03 / ALERTAS</span>
+                <span class="module-kicker">ALERTAS</span>
                 <h3>Alertas y bitácora</h3>
             </div>
             <span class="badge-status" ${sevStyle(worst)}>${active.length ? `${active.length} ACTIVA${active.length > 1 ? "S" : ""}` : "SIN ALERTAS"}</span>
@@ -251,7 +251,7 @@ function htmlWellbeing() {
     return `
         <div class="module-head">
             <div>
-                <span class="module-kicker">04 / BIENESTAR</span>
+                <span class="module-kicker">BIENESTAR</span>
                 <h3>Bienestar y descanso</h3>
             </div>
             <span class="badge-status" ${sevStyle(W.scoreSev)}>${SEV_LABEL[W.scoreSev]}</span>
@@ -352,7 +352,7 @@ function htmlProfile() {
                 <span>FOTO SIM</span>
             </div>
             <div class="profile-id">
-                <span class="module-kicker">05 / PERFIL · AST-001</span>
+                <span class="module-kicker">PERFIL · AST-001</span>
                 <h3>ANDRÉS RÍOS VEGA</h3>
                 <p>Comandante · ${missionName} · D042</p>
                 <span class="badge-status" ${sevStyle(worst)}>${medicalStatus}</span>
@@ -408,9 +408,9 @@ const SYNC_MODES = {
     earth:  { label: "POR ENLACE TIERRA", detail: "Toma la hora de la estación de control en cada ventana de contacto." }
 };
 const LINK_MODES = {
-    nominal:      { label: "ENLACE NOMINAL",   short: "NOMINAL",      sev: 0, state: "ESTABLE",      band: "BANDA X",  latency: "1.2 s",  window: "3 H",      detail: "Telemetría completa y voz bidireccional con el centro de control." },
-    reducido:     { label: "ENLACE REDUCIDO",  short: "REDUCIDO",     sev: 1, state: "DEGRADADO",    band: "BANDA S",  latency: "6.5 s",  window: "45 MIN",   detail: "Solo telemetría esencial. La voz se reserva para contingencias." },
-    contingencia: { label: "CONTINGENCIA",     short: "CONTINGENCIA", sev: 2, state: "EMERGENCIA",   band: "UHF",      latency: "VARIABLE", window: "BAJO DEMANDA", detail: "Canal de emergencia con voz y telemetría mínima. Requiere confirmación del CMO." }
+    nominal:      { label: "ENLACE NOMINAL",   short: "NOMINAL",      sev: 0, state: "ESTABLE",      band: "BANDA X",  latency: "1.2 s",  carrier: "8.41 GHz", traffic: "VOZ + TELEMETRÍA",     window: "3 H",      detail: "Telemetría completa y voz bidireccional con el centro de control." },
+    reducido:     { label: "ENLACE REDUCIDO",  short: "REDUCIDO",     sev: 1, state: "DEGRADADO",    band: "BANDA S",  latency: "6.5 s",  carrier: "2.32 GHz", traffic: "TELEMETRÍA ESENCIAL", window: "45 MIN",   detail: "Solo telemetría esencial. La voz se reserva para contingencias." },
+    contingencia: { label: "CONTINGENCIA",     short: "CONTINGENCIA", sev: 2, state: "EMERGENCIA",   band: "UHF",      latency: "VARIABLE", carrier: "0.42 GHz", traffic: "VOZ DE EMERGENCIA", window: "BAJO DEMANDA", detail: "Canal de emergencia con voz y telemetría mínima. Requiere confirmación del CMO." }
 };
 
 function htmlSettings() {
@@ -450,7 +450,7 @@ function htmlSettings() {
     return `
         <div class="module-head">
             <div>
-                <span class="module-kicker">06 / AJUSTES</span>
+                <span class="module-kicker">AJUSTES</span>
                 <h3>Configuración del sistema</h3>
             </div>
             <span class="badge-status" ${sevStyle(0)}>LOCAL</span>
@@ -524,11 +524,40 @@ function htmlSettings() {
         <p class="module-note">* Configuración local de demostración. No se envían notificaciones ni datos reales.</p>`;
 }
 
+/* ---------- SIMULACIÓN (solo prototipo) ---------- */
+function htmlSimulation() {
+    const current = SCENARIOS[state.scenario] || SCENARIOS.normal;
+    const buttons = Object.keys(SCENARIOS).map(k =>
+        `<button class="scn-btn ${state.scenario === k ? "is-on" : ""}" type="button" data-scenario="${k}" aria-pressed="${state.scenario === k}">${SCENARIOS[k].label}</button>`).join("");
+
+    return `
+        <div class="module-head">
+            <div>
+                <span class="module-kicker">SIMULACIÓN</span>
+                <h3>Control de simulación</h3>
+            </div>
+            <span class="badge-status" ${sevStyle(0)}>PROTOTIPO</span>
+        </div>
+        <p class="module-intro">Inyecta escenarios fisiológicos y ambientales para probar la consola. Este módulo es exclusivo del prototipo y se eliminará en la versión final.</p>
+
+        <div class="module-section-title"><span>ESCENARIO ACTIVO</span><span>${esc(current.label)}</span></div>
+        <div class="control-panel">
+            <div class="scenario-grid" role="group" aria-label="Escenarios de simulación">${buttons}</div>
+            <div class="eq-row">
+                <label for="eva-slider">CARGA EVA</label>
+                <input type="range" id="eva-slider" class="eq-slider" min="0" max="100" value="${r0(state.evaLoad)}" step="1">
+                <span class="lcd lcd-sm"><span class="lcd-ghost" aria-hidden="true">8</span><span class="lcd-val" id="eva-value">${r0(state.evaLoad)}</span></span><span class="lcd-unit">%</span>
+            </div>
+        </div>
+        <p class="module-note">* Los valores inyectados son simulados y no representan datos clínicos reales.</p>`;
+}
+
 const MODULES = {
     monitoring: { title: "CENTRO DE MONITOREO BIOMÉTRICO", html: htmlMonitoring, live: true },
     history:    { title: "HISTORIAL Y LÍNEA BASE",         html: htmlHistory,    live: false },
     alerts:     { title: "ALERTAS Y BITÁCORA",             html: htmlAlerts,     live: true },
     wellbeing:  { title: "BIENESTAR Y DESCANSO",           html: htmlWellbeing,  live: true },
     profile:    { title: "PERFIL DEL TRIPULANTE",          html: htmlProfile,    live: true },
-    settings:   { title: "CONFIGURACIÓN DEL SISTEMA",      html: htmlSettings,   live: false }
+    settings:   { title: "CONFIGURACIÓN DEL SISTEMA",      html: htmlSettings,   live: false },
+    simulation: { title: "CONTROL DE SIMULACIÓN",          html: htmlSimulation, live: false }
 };

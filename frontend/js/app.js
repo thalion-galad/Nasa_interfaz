@@ -44,7 +44,10 @@
             const prev = logged[k] || 0;
             if (D[k] === prev) return;
             const info = METRIC_INFO[k];
-            if (D[k] > prev) logEvent(D[k], `${info.label} ${info.fmt()} → ${SEV_LABEL[D[k]]}`);
+            if (D[k] > prev) {
+                logEvent(D[k], `${info.label} ${info.fmt()} → ${SEV_LABEL[D[k]]}`);
+                notifyAlert(k, D[k]);
+            }
             else if (D[k] === 0) logEvent(0, `${info.label} vuelve a NOMINAL`);
             else logEvent(D[k], `${info.label} baja a ${SEV_LABEL[D[k]]}`);
             logged[k] = D[k];
@@ -79,6 +82,7 @@
 
     const hrHist = [];
     const sysHist = [];
+    const hrTrend = genHistory("24h", "hr").slice(-12);   // 12 puntos = últimas 12 h
     const sparkBars = [];
     for (let i = 0; i < 12; i++) sysHist.push(state.sys);   // evita barras vacías al inicio
     (function buildSparkline() {
@@ -96,6 +100,7 @@
         hrHist.push(state.hr); if (hrHist.length > 1800) hrHist.shift();
         const avg = hrHist.reduce((a, b) => a + b, 0) / hrHist.length;
         $("#hr-avg").textContent = `PROMEDIO SESIÓN: ${r0(avg)} BPM`;
+        renderHrTrend();
 
         // Presión arterial + tendencia
         $("#bp-sys").textContent = r0(state.sys);
@@ -124,6 +129,41 @@
         }
 
         syncLcdGhosts();
+        renderEcgSignal();
+    }
+
+    /* Pequeña gráfica de evolución de la FC en las últimas horas. */
+    function renderHrTrend() {
+        const values = hrTrend.slice();
+        values[values.length - 1] = state.hr;   // el último punto sigue la lectura actual
+        const min = Math.min(...values), max = Math.max(...values);
+        const lo = min - 4, hi = max + 4, span = hi - lo || 1;
+        const W = 200, H = 48, pad = 4;
+        const pts = values.map((v, i) => {
+            const x = (i / (values.length - 1)) * W;
+            const y = pad + (1 - (v - lo) / span) * (H - pad * 2);
+            return [x, y];
+        });
+        const d = pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+        $("#hr-trend-line").setAttribute("points", d);
+        $("#hr-trend-area").setAttribute("points", `0,${H} ${d} ${W},${H}`);
+        const last = pts[pts.length - 1];
+        const dot = $("#hr-trend-dot");
+        dot.setAttribute("cx", last[0].toFixed(1));
+        dot.setAttribute("cy", last[1].toFixed(1));
+        $("#hr-trend-min").textContent = `MÍN ${r0(min)}`;
+        $("#hr-trend-max").textContent = `MÁX ${r0(max)}`;
+    }
+
+    /* Indicador de calidad de la señal ECG (5 barras). */
+    function renderEcgSignal() {
+        const noise = (D.spo2 || 0) * 0.35 + state.evaLoad / 100 * 0.5;
+        const level = clamp(Math.round(5 - noise * 4 - (D.hr === 2 ? 1 : D.hr === 1 ? 0.4 : 0)), 1, 5);
+        const box = $("#ecg-signal");
+        box.dataset.status = level >= 4 ? "ok" : level >= 3 ? "warn" : "alert";
+        box.title = `Calidad de señal ECG: ${["", "crítica", "débil", "regular", "buena", "óptima"][level]}`;
+        $("#ecg-signal-text").textContent = ["", "CRÍTICA", "DÉBIL", "REGULAR", "BUENA", "ÓPTIMA"][level];
+        $$(".signal-bars i", box).forEach((bar, i) => bar.classList.toggle("is-on", i < level));
     }
 
     /* ---------- 3. ESTADO GLOBAL, ALERTAS Y TICKER ---------- */
@@ -151,6 +191,20 @@
             tickerTrack.textContent = `*** ${head} *** MODO AUTÓNOMO: LA TRIPULACIÓN EVALÚA SU PROPIO ESTADO *** DATOS SIMULADOS — NO USO CLÍNICO *** `;
             ticker.dataset.status = SEV_KEY[maxSev];
         }
+
+        renderRadio();
+    }
+
+    /* Estado del enlace de radio mostrado junto al espectro. */
+    function renderRadio() {
+        const link = LINK_MODES[ui.mission.link] || LINK_MODES.nominal;
+        const stateEl = $("#radio-state");
+        stateEl.textContent = `● ${link.label}`;
+        stateEl.className = ["green-text", "amber-text", "red-text"][link.sev];
+        $("#radio-band").textContent = link.band;
+        $("#radio-latency").textContent = `LATENCIA ${link.latency}`;
+        $("#radio-carrier").textContent = link.carrier;
+        $("#radio-traffic").textContent = link.traffic;
     }
 
     /* ---------- 4. ESCÁNER CORPORAL ---------- */
@@ -188,9 +242,6 @@
             $("#zr-title").textContent = "ESCANEO CONTINUO";
             $("#zr-badge").textContent = "NOMINAL";
             list.innerHTML = "";
-            $("#zr-nasa").textContent = "Las 7 zonas están en rango. Con comunicaciones retrasadas, la NASA busca que la tripulación detecte cambios tempranos por sí misma (operaciones médicas independientes de la Tierra).";
-            $("#zr-cause").textContent = "Sin hallazgos.";
-            $("#zr-action").textContent = "Mantener la rutina de monitoreo y las contramedidas de ejercicio. Pulsa una zona para ver su detalle.";
             return;
         }
         const info = ZONES[z.id];
@@ -202,17 +253,6 @@
         if (z.viaRadiation) items.push({ k: "dose", sev: D.dose });
         list.innerHTML = items.map(i =>
             `<li ${sevStyle(i.sev)}><span>${METRIC_INFO[i.k].label}</span><b>${METRIC_INFO[i.k].fmt()}</b><i>${SEV_LABEL[i.sev]}</i></li>`).join("");
-
-        if (z.sev === 0) {
-            $("#zr-nasa").textContent = info.nasa;
-            $("#zr-cause").textContent = "Sin hallazgos: los parámetros de esta zona están en rango.";
-            $("#zr-action").textContent = "Mantener rutina de monitoreo y contramedidas de ejercicio.";
-        } else {
-            const m = METRIC_INFO[z.primary];
-            $("#zr-nasa").textContent = z.viaRadiation ? RADIATION_NASA : info.nasa;
-            $("#zr-cause").textContent = m.cause();
-            $("#zr-action").textContent = m.action();
-        }
     }
 
     function selectZone(id) {
@@ -343,7 +383,16 @@
             ui.mission.link = b.dataset.missionLink;
             const link = LINK_MODES[ui.mission.link];
             logEvent(link.sev, `ENLACE TIERRA: modo ${link.label}`);
+            renderRadio();   // refleja el enlace en el espectro sin esperar al siguiente tick
             rerenderKeepFocus(`[data-mission-link="${ui.mission.link}"]`);
+        }
+        else if (b.dataset.scenario) {
+            state.scenario = b.dataset.scenario;
+            logEvent(0, `ESCENARIO: ${SCENARIOS[state.scenario].label}`);
+            for (let i = 0; i < 4; i++) stepState();   // respuesta visible sin esperar
+            lastUpdate = Date.now();
+            render();
+            rerenderKeepFocus(`[data-scenario="${state.scenario}"]`);
         }
     });
 
@@ -386,6 +435,14 @@
 
     drawerContent.addEventListener("input", e => {
         const t = e.target;
+        if (t.id === "eva-slider") {
+            state.evaLoad = Number(t.value);
+            t.setAttribute("aria-valuetext", `${t.value} %`);
+            const out = $("#eva-value", drawerContent);
+            if (out) out.textContent = String(r0(state.evaLoad));
+            syncLcdGhosts();
+            return;
+        }
         if (!t.dataset || !t.dataset.mission) return;
         const field = t.dataset.mission;
         ui.mission[field] = t.value;
@@ -396,29 +453,6 @@
                 out.textContent = String(v).padStart(3, "0");
             }
         }
-    });
-
-    /* ---------- 7. CONTROL DE SIMULACIÓN ---------- */
-    $$(".scn-btn").forEach(b => {
-        b.setAttribute("aria-pressed", String(b.classList.contains("is-on")));
-        b.addEventListener("click", () => {
-            state.scenario = b.dataset.scenario;
-            $$(".scn-btn").forEach(x => {
-                const on = x === b;
-                x.classList.toggle("is-on", on);
-                x.setAttribute("aria-pressed", String(on));
-            });
-            logEvent(0, `ESCENARIO: ${SCENARIOS[state.scenario].label}`);
-            for (let i = 0; i < 4; i++) stepState();   // respuesta visible sin esperar
-            lastUpdate = Date.now();
-            render();
-        });
-    });
-
-    $("#eva-slider").addEventListener("input", e => {
-        state.evaLoad = Number(e.target.value);
-        $("#eva-value").textContent = state.evaLoad;
-        syncLcdGhosts();
     });
 
     /* ---------- 8. VENTANA: STANDBY / CONTRAER ---------- */
@@ -459,11 +493,12 @@
     setInterval(tick, 2000);
     setInterval(tickClocks, 1000);
 
-    startCanvases($("#ecg-canvas"), $("#bio-canvas"), () => ({
+    startCanvases($("#ecg-canvas"), $("#radio-canvas"), () => ({
         running: powered && !shaded,
         hr: state.hr,
         color: ["#00ff66", "#ffb000", "#ff3b3b"][D.hr || 0],
         noise: (D.spo2 || 0) * 0.3 + state.evaLoad / 100 * 0.5,
-        level: clamp(0.25 + (state.hr - 60) / 120 * 0.4 + state.evaLoad / 100 * 0.3, 0.2, 0.95)
+        level: clamp(0.25 + (state.hr - 60) / 120 * 0.4 + state.evaLoad / 100 * 0.3, 0.2, 0.95),
+        link: (LINK_MODES[ui.mission.link] || LINK_MODES.nominal).sev
     }));
 })();
