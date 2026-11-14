@@ -1,6 +1,8 @@
 
 from datetime import datetime, timezone
 
+from sqlalchemy import func
+
 from app.database import SessionLocal
 from app.models import (
     AstronautDB,
@@ -21,6 +23,24 @@ from app.schemas import (
 
 def utc_now():
     return datetime.now(timezone.utc)
+
+
+def as_utc(value: datetime = None) -> datetime:
+    """
+    Normaliza una fecha a UTC.
+
+    SQLite descarta la zona horaria al guardar, así que una fecha con
+    offset distinto de UTC se leería como si fuera UTC. Convertirla
+    antes de persistir mantiene el orden del historial.
+    """
+
+    if value is None:
+        return utc_now()
+
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+
+    return value.astimezone(timezone.utc)
 
 
 class DatabaseStore:
@@ -102,7 +122,7 @@ class DatabaseStore:
 
             measurement = MeasurementDB(
                 **payload,
-                timestamp=data.timestamp or utc_now(),
+                timestamp=as_utc(data.timestamp),
             )
 
             db.add(measurement)
@@ -140,6 +160,26 @@ class DatabaseStore:
                 .all()
             )
 
+    def get_latest_measurement(self, astronaut_id: int = None):
+        """Última medición persistida (la de ID más alto)."""
+
+        with SessionLocal() as db:
+
+            query = db.query(MeasurementDB)
+
+            if astronaut_id is not None:
+                query = query.filter(
+                    MeasurementDB.astronaut_id == astronaut_id
+                )
+
+            return (
+                query
+                .order_by(
+                    MeasurementDB.id.desc(),
+                )
+                .first()
+            )
+
     def get_latest_measurements(self):
         """Obtiene la última medición de cada astronauta."""
 
@@ -147,34 +187,21 @@ class DatabaseStore:
 
             latest_ids = (
                 db.query(
-                    MeasurementDB.astronaut_id,
-                    # Máximo timestamp por astronauta
+                    func.max(MeasurementDB.id).label("id"),
                 )
-                .distinct()
-                .all()
+                .group_by(MeasurementDB.astronaut_id)
+                .subquery()
             )
 
-            results = []
-
-            for row in latest_ids:
-                astronaut_id = row[0]
-
-                measurement = (
-                    db.query(MeasurementDB)
-                    .filter(
-                        MeasurementDB.astronaut_id == astronaut_id
-                    )
-                    .order_by(
-                        MeasurementDB.timestamp.desc(),
-                        MeasurementDB.id.desc(),
-                    )
-                    .first()
+            return (
+                db.query(MeasurementDB)
+                .join(
+                    latest_ids,
+                    MeasurementDB.id == latest_ids.c.id,
                 )
-
-                if measurement:
-                    results.append(measurement)
-
-            return results
+                .order_by(MeasurementDB.astronaut_id.asc())
+                .all()
+            )
 
     # ==========================================
     # ALERTAS
@@ -252,7 +279,7 @@ class DatabaseStore:
 
             log = LogDB(
                 **payload,
-                timestamp=data.timestamp or utc_now(),
+                timestamp=as_utc(data.timestamp),
             )
 
             db.add(log)
@@ -293,7 +320,7 @@ class DatabaseStore:
 
             insight = InsightDB(
                 **payload,
-                timestamp=data.timestamp or utc_now(),
+                timestamp=as_utc(data.timestamp),
             )
 
             db.add(insight)

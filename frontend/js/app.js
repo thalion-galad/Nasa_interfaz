@@ -1,14 +1,9 @@
 /* =========================================================
    ASTRA HEALTH · APLICACIÓN
-   Un único estado (model.js) -> render() actualiza toda la UI.
-   Depende de: model.js, canvas.js, modules.js (y backend.js para telemetría/API)
+   El estado (model.js) se rellena desde la API (api.js).
+   render() solo pinta lo que llega por REST + WebSocket.
    ========================================================= */
 "use strict";
-
-// Conexión inicial de telemetría (el botón de bitácora se maneja más abajo, en un único listener)
-document.addEventListener("DOMContentLoaded", () => {
-    if (typeof backend !== "undefined") backend.connectTelemetry();
-});
 
 (() => {
     const $ = (s, r = document) => r.querySelector(s);
@@ -29,7 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let powered = true;
     let shaded = false;
-    let lastUpdate = Date.now();
     const bootTime = Date.now();
 
     /* ---------- 1. SEVERIDAD CON LATCH (sube al instante, baja tras 2 lecturas) ---------- */
@@ -67,6 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     function setSev(node, sev) {
+        if (!node) return;
         node.dataset.status = SEV_KEY[sev];
         const badge = $("[data-badge]", node);
         if (badge) badge.textContent = SEV_LABEL[sev];
@@ -85,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const hrHist = [];
     const sysHist = [];
     const sparkBars = [];
-    for (let i = 0; i < 12; i++) sysHist.push(state.sys);   // evita barras vacías al inicio
     (function buildSparkline() {
         const box = $("#bp-spark");
         for (let i = 0; i < 12; i++) { const s = document.createElement("span"); box.appendChild(s); sparkBars.push(s); }
@@ -133,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
         syncLcdGhosts();
     }
 
-    /* ---------- 3. ESTADO GLOBAL, ALERTAS Y TICKER ---------- */
+    /* ---------- 3. ESTADO GLOBAL, MISIÓN Y ORIGEN ---------- */
     let tickerKey = "";
     function renderGlobal() {
         const keys = Object.keys(METRIC_INFO);
@@ -154,10 +148,54 @@ document.addEventListener("DOMContentLoaded", () => {
             tickerKey = key;
             const head = active.length
                 ? active.map(k => `${METRIC_INFO[k].label} ${METRIC_INFO[k].fmt()} [${SEV_LABEL[D[k]]}]`).join(" *** ")
-                : "AST-001 · VITALES NOMINALES";
-            tickerTrack.textContent = `*** ${head} *** MODO AUTÓNOMO: LA TRIPULACIÓN EVALÚA SU PROPIO ESTADO *** DATOS SIMULADOS — NO USO CLÍNICO *** `;
+                : "VITALES NOMINALES";
+            tickerTrack.textContent = `*** ${head} *** DATOS PERSISTIDOS EN SQLITE — TELEMETRÍA VÍA REST + WEBSOCKET *** NO USO CLÍNICO *** `;
             ticker.dataset.status = SEV_KEY[maxSev];
         }
+    }
+
+    function renderMission() {
+        const a = backend.cache.astronaut;
+        const crew = $("#mission-crew");
+        const mission = $("#mission-name");
+        const source = $("#data-source");
+
+        if (a && crew) {
+            crew.textContent = `${a.code} (${a.role || "TRIPULANTE"})`.toUpperCase();
+        }
+
+        if (a && mission) {
+            const day = String(a.mission_day ?? 0).padStart(3, "0");
+            mission.textContent = `${a.mission || "—"} · D${day}`;
+        }
+
+        if (source) {
+            source.textContent = (state.source || "SIN DATOS").toUpperCase();
+        }
+    }
+
+    /* La carga EVA y el escenario se LEEN de la base de datos:
+       los controles quedan como indicadores de solo lectura. */
+    function renderSource() {
+        $$(".scn-btn").forEach(b => {
+            const on = b.dataset.scenario === state.scenario;
+            b.classList.toggle("is-on", on);
+            b.setAttribute("aria-pressed", String(on));
+            b.disabled = true;
+        });
+
+        const slider = $("#eva-slider");
+        const out = $("#eva-value");
+        const load = state.evaLoad ?? 0;
+
+        if (slider) {
+            slider.value = String(load);
+            slider.disabled = true;
+        }
+
+        if (out) out.textContent = String(load);
+
+        syncLcdGhosts();
     }
 
     /* ---------- 4. ESCÁNER CORPORAL ---------- */
@@ -241,39 +279,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     $("#zone-auto").addEventListener("click", () => { autoMode = true; renderBody(); });
 
-    /* Único listener de la bitácora: registra localmente y luego envía a la API REST */
+    /* Único listener de la bitácora: envía a la API y relee desde la BD */
     let logTimer = null;
     $("#zone-log").addEventListener("click", async e => {
         const btn = e.currentTarget;
         if (btn.disabled) return;
 
+        if (!state.ready) {
+            btn.textContent = "SIN TELEMETRÍA";
+            clearTimeout(logTimer);
+            logTimer = setTimeout(() => { btn.textContent = "REGISTRAR EN BITÁCORA"; }, 2500);
+            return;
+        }
+
         const Z = computeZones(D);
         const id = autoMode ? (worstZone(Z) || {}).id : selectedZone;
         const zoneName = id ? ZONES[id].name : "Sistema General";
 
-        // 1. Registro local
-        if (id) logEvent(Z[id].sev, `BITÁCORA: ${zoneName} — ${SEV_LABEL[Z[id].sev]}`);
-        else logEvent(0, "BITÁCORA: escaneo corporal sin anomalías");
-        refreshDrawer(true);
+        btn.disabled = true;
+        btn.textContent = "TRANSMITIENDO...";
 
-        // 2. Envío al backend (si existe)
-        clearTimeout(logTimer);
         let label = "REGISTRADO ✓";
-        if (typeof backend !== "undefined") {
-            btn.disabled = true;
-            btn.textContent = "TRANSMITIENDO...";
-            try {
-                const result = await backend.saveZoneLog({
-                    zone: zoneName,
-                    action: $("#zr-action").textContent
-                });
-                label = result ? "REGISTRADO ✓" : "FALLO DE RED";
-            } catch (err) {
-                label = "FALLO DE RED";
-            }
+
+        try {
+            const result = await backend.saveZoneLog({
+                zone: zoneName,
+                action: $("#zr-action").textContent
+            });
+            label = result ? "REGISTRADO ✓" : "FALLO DE RED";
+            if (result) refreshDrawer(true);
+        } catch (err) {
+            label = "FALLO DE RED";
         }
 
-        // 3. Feedback único y restauración
         btn.textContent = label;
         logTimer = setTimeout(() => {
             btn.textContent = "REGISTRAR EN BITÁCORA";
@@ -281,29 +319,55 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 3000);
     });
 
-    /* ---------- 5. RENDER GENERAL Y SIMULACIÓN ---------- */
+    /* ---------- 5. ESTADO SIN DATOS ---------- */
+    function renderIdle() {
+        const g = $("#global-status");
+        if (g) { g.textContent = "● ESPERANDO TELEMETRÍA"; g.className = "amber-text"; }
+
+        const badge = $("#alert-count");
+        if (badge) badge.hidden = true;
+
+        $$("[data-badge]").forEach(b => { b.textContent = "SIN DATOS"; });
+        $$("[data-metric]").forEach(n => { n.dataset.status = "warn"; });
+
+        const summary = $("#body-summary");
+        if (summary) summary.textContent = "SIN TELEMETRÍA";
+
+        const ecg = $("#ecg-state");
+        if (ecg) { ecg.textContent = "● SIN SEÑAL"; ecg.className = "amber-text"; }
+
+        $("#zr-title").textContent = "SIN TELEMETRÍA";
+        $("#zr-badge").textContent = "SIN DATOS";
+        $("#zr-list").innerHTML = "";
+        $("#zr-nasa").textContent = "A la espera de la primera medición persistida en astra_health.db.";
+        $("#zr-cause").textContent = "—";
+        $("#zr-action").textContent = "—";
+
+        renderMission();
+        renderSource();
+        refreshDrawer(false);
+    }
+
+    /* ---------- 6. RENDER GENERAL ---------- */
     function render() {
+        if (!state.ready) { renderIdle(); return; }
+
         latchSeverity(evaluate());
         trackAlerts();
         renderMetrics();
         renderGlobal();
+        renderMission();
+        renderSource();
         renderBody();
         refreshDrawer(false);
     }
 
     function tick() {
         if (!powered) return;
-
-        // Solo ejecutar la simulación si no hay telemetría real
-        if (typeof backend === "undefined" || !backend.isConnected) {
-            stepState();
-        }
-
-        lastUpdate = Date.now();
         render();
     }
 
-    /* ---------- 6. CAJÓN DE MÓDULOS ---------- */
+    /* ---------- 7. CAJÓN DE MÓDULOS ---------- */
     let activeModule = null;
     let lastTrigger = null;
 
@@ -362,6 +426,16 @@ document.addEventListener("DOMContentLoaded", () => {
     drawerContent.addEventListener("click", e => {
         const b = e.target.closest("button");
         if (!b) return;
+
+        if (b.dataset.ackAlert) {
+            b.disabled = true;
+            backend.acknowledgeAlert(Number(b.dataset.ackAlert))
+                .then(() => Promise.allSettled([backend.loadAlerts(), backend.loadLogs()]))
+                .then(() => refreshDrawer(true))
+                .catch(() => { b.disabled = false; });
+            return;
+        }
+
         if (b.dataset.histRange) { ui.histRange = b.dataset.histRange; rerenderKeepFocus(`[data-hist-range="${ui.histRange}"]`); }
         else if (b.dataset.histMetric) { ui.histMetric = b.dataset.histMetric; rerenderKeepFocus(`[data-hist-metric="${ui.histMetric}"]`); }
         else if (b.dataset.mood) {
@@ -438,29 +512,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    /* ---------- 7. CONTROL DE SIMULACIÓN ---------- */
-    $$(".scn-btn").forEach(b => {
-        b.setAttribute("aria-pressed", String(b.classList.contains("is-on")));
-        b.addEventListener("click", () => {
-            state.scenario = b.dataset.scenario;
-            $$(".scn-btn").forEach(x => {
-                const on = x === b;
-                x.classList.toggle("is-on", on);
-                x.setAttribute("aria-pressed", String(on));
-            });
-            logEvent(0, `ESCENARIO: ${SCENARIOS[state.scenario].label}`);
-            for (let i = 0; i < 4; i++) stepState();   // respuesta visible sin esperar
-            lastUpdate = Date.now();
-            render();
-        });
-    });
-
-    $("#eva-slider").addEventListener("input", e => {
-        state.evaLoad = Number(e.target.value);
-        $("#eva-value").textContent = state.evaLoad;
-        syncLcdGhosts();
-    });
-
     /* ---------- 8. VENTANA: STANDBY / CONTRAER ---------- */
     function setPower(on) {
         powered = on;
@@ -486,24 +537,56 @@ document.addEventListener("DOMContentLoaded", () => {
     const pad = n => String(n).padStart(2, "0");
     function tickClocks() {
         $("#system-clock").textContent = nowTime();
+
         const s = Math.floor((Date.now() - bootTime) / 1000);
-        $("#met-clock").textContent = `042:${pad(Math.floor(s / 3600) % 24)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
-        $("#last-sync-time").textContent = `HACE ${Math.floor((Date.now() - lastUpdate) / 1000)}s`;
+        const day = String(backend.cache.astronaut?.mission_day ?? 42).padStart(3, "0");
+        $("#met-clock").textContent = `${day}:${pad(Math.floor(s / 3600) % 24)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+
+        const el = $("#last-sync-time");
+        const ts = parseTs(state.timestamp);
+
+        if (!ts) {
+            el.textContent = "SIN DATOS";
+            return;
+        }
+
+        const age = Math.max(0, Math.floor((Date.now() - ts.getTime()) / 1000));
+        el.textContent = age < 60
+            ? `HACE ${age}s`
+            : age < 3600
+                ? `HACE ${Math.floor(age / 60)} min`
+                : `HACE ${Math.floor(age / 3600)} h`;
     }
 
     /* ---------- 10. ARRANQUE ---------- */
-    logEvent(0, "SISTEMA INICIADO — CALIBRACIÓN DE SENSORES COMPLETADA");
+    logEvent(0, "SISTEMA INICIADO — CONECTANDO CON LA API");
+
     applyFx();
     render();
     tickClocks();
-    setInterval(tick, 2000);
+
+    setInterval(tick, 1000);
     setInterval(tickClocks, 1000);
 
+    // Refresco periódico de historial, alertas, bitácora e insights.
+    setInterval(() => {
+        backend.refresh().then(() => refreshDrawer(true));
+    }, 15000);
+
+    // Carga inicial por REST y después telemetría por WebSocket.
+    backend.bootstrap()
+        .then(() => { render(); refreshDrawer(true); })
+        .catch(error => console.error("Error en la carga inicial:", error));
+
+    backend.connectTelemetry();
+
     startCanvases($("#ecg-canvas"), $("#bio-canvas"), () => ({
-        running: powered && !shaded,
-        hr: state.hr,
+        running: powered && !shaded && state.ready,
+        hr: state.hr || 0,
         color: ["#00ff66", "#ffb000", "#ff3b3b"][D.hr || 0],
-        noise: (D.spo2 || 0) * 0.3 + state.evaLoad / 100 * 0.5,
-        level: clamp(0.25 + (state.hr - 60) / 120 * 0.4 + state.evaLoad / 100 * 0.3, 0.2, 0.95)
+        noise: (D.spo2 || 0) * 0.3 + (state.evaLoad || 0) / 100 * 0.5,
+        level: isNum(state.hr)
+            ? clamp(0.25 + (state.hr - 60) / 120 * 0.4 + (state.evaLoad || 0) / 100 * 0.3, 0.2, 0.95)
+            : 0.2
     }));
 })();

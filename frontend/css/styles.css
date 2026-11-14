@@ -400,6 +400,17 @@ sub { font-size: .7em; }
 .eq-slider::-moz-range-thumb { width: 12px; height: 20px; border-radius: 1px; cursor: pointer; background: linear-gradient(180deg, #8a93a3, #3a404b); border: 1px solid #0a0b0d; }
 .eq-row .lcd { --c: var(--green-glow); }
 
+/* Controles de solo lectura: los valores llegan desde la base de datos. */
+.scn-btn:disabled, .eq-slider:disabled { cursor: not-allowed; opacity: .6; }
+.scn-btn:disabled:hover { background: linear-gradient(180deg, #444b57 0%, #2c313a 60%, #1e2228 100%); }
+.console-main .module-note {
+    margin-top: 8px;
+    font-family: var(--font-digital);
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--dim);
+}
+
 /* ---------- 10. ESCÁNER CORPORAL ---------- */
 .body-panel { padding: 10px; }
 .body-stage {

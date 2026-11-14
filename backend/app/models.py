@@ -69,6 +69,9 @@ class MeasurementDB(Base):
     hydration_percent = Column(Float, nullable=False)
     radiation_usvh = Column(Float, nullable=False)
 
+    fatigue_index = Column(Integer, nullable=False, default=18)
+    countermeasures_percent = Column(Integer, nullable=False, default=86)
+
     scenario = Column(String(30), nullable=False, default="normal")
     eva_load = Column(Integer, nullable=False, default=0)
     source = Column(String(100), nullable=False, default="SIM-BIO-AST01")

@@ -81,6 +81,9 @@ class MeasurementCreate(ORMBase):
     hydration_percent: float = Field(..., ge=0.0, le=100.0)
     radiation_usvh: float = Field(..., ge=0.0)
 
+    fatigue_index: int = Field(default=18, ge=0, le=100)
+    countermeasures_percent: int = Field(default=86, ge=0, le=100)
+
     scenario: ScenarioType = "normal"
     eva_load: int = Field(default=0, ge=0, le=100)
 

@@ -1,6 +1,8 @@
 /* =========================================================
    ASTRA HEALTH · MODELO (sin DOM)
-   Estado único, simulación, reglas de severidad y zonas corporales.
+   Estado único que se RELLENA desde la API (REST + WebSocket).
+   Aquí no se generan datos: solo se evalúa la severidad para
+   colorear la interfaz y se describen métricas y zonas.
    Severidad: 0 = nominal · 1 = precaución · 2 = alerta.
    TODOS los umbrales son de simulación (educativos, no clínicos).
    ========================================================= */
@@ -9,48 +11,41 @@
 const SEV_LABEL = ["NOMINAL", "PRECAUCIÓN", "ALERTA"];
 const SEV_KEY = ["ok", "warn", "alert"];
 
-/* ---------- 1. ESTADO ÚNICO ---------- */
-const BASE = { hr: 72, sys: 118, dia: 78, spo2: 98.5, temp: 36.7, rr: 15, co2: 2.2, hyd: 88, fat: 18, cm: 86, dose: 22 };
-const state = Object.assign({}, BASE, { evaLoad: 0, scenario: "normal" });
+/* ---------- 1. ESTADO ÚNICO (vacío hasta la primera lectura) ---------- */
+const state = {
+    ready: false,
+    measurementId: null,
+    astronautId: null,
+    timestamp: null,
+    source: null,
+    scenario: null,
+    evaLoad: null,
 
-const NOISE = { hr: 1.6, sys: 1.6, dia: 1.2, spo2: 0.15, temp: 0.03, rr: 0.5, co2: 0.05, hyd: 0.2, fat: 0.3, cm: 0.2, dose: 0.8 };
-const LIMITS = {
-    hr: [35, 190], sys: [70, 200], dia: [40, 120], spo2: [70, 100], temp: [33, 42],
-    rr: [4, 40], co2: [0, 10], hyd: [0, 100], fat: [0, 100], cm: [0, 100], dose: [0, 1000]
+    hr: null,
+    sys: null,
+    dia: null,
+    spo2: null,
+    temp: null,
+    rr: null,
+    co2: null,
+    hyd: null,
+    fat: null,
+    cm: null,
+    dose: null
 };
 
-/* ---------- 2. ESCENARIOS (inyectables desde el panel de control) ---------- */
-const SCENARIOS = {
-    normal:      { label: "NORMAL",            apply() {} },
-    hypoxia:     { label: "HIPOXIA",           apply(t) { t.spo2 = 86.5; t.hr += 26; t.rr += 9; } },
-    tachy:       { label: "TAQUICARDIA",       apply(t) { t.hr = Math.max(t.hr, 134); t.sys += 22; t.dia += 10; t.rr += 4; } },
-    dehydration: { label: "DESHIDRATACIÓN",    apply(t) { t.hyd = 50; t.temp += 0.6; t.hr += 18; t.sys -= 14; } },
-    co2:         { label: "CO₂ ALTO",          apply(t) { t.co2 = 6.2; t.rr += 8; t.spo2 -= 1.5; t.hr += 10; } },
-    fever:       { label: "HIPERTERMIA",       apply(t) { t.temp = 39.1; t.hr += 25; t.rr += 5; t.hyd -= 12; } },
-    fatigue:     { label: "FATIGA / HUESO",    apply(t) { t.fat = 88; t.cm = 58; t.hr += 10; t.hyd -= 8; } },
-    radiation:   { label: "RADIACIÓN (SPE)",   apply(t) { t.dose = 420; } }
-};
+const isNum = v => typeof v === "number" && Number.isFinite(v);
 
-function computeTargets() {
-    const L = state.evaLoad / 100;
-    const t = Object.assign({}, BASE);
-    t.hr += 45 * L;  t.rr += 10 * L;  t.temp += 0.6 * L;  t.sys += 18 * L;  t.dia += 6 * L;
-    t.hyd -= 14 * L; t.fat += 45 * L; t.co2 += 0.6 * L;   t.spo2 -= 0.8 * L;
-    (SCENARIOS[state.scenario] || SCENARIOS.normal).apply(t);
-    return t;
+/* SQLite puede devolver fechas sin zona horaria: se interpretan como UTC. */
+function parseTs(value) {
+    if (!value) return null;
+    const text = String(value);
+    const iso = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(text) ? text : `${text}Z`;
+    const date = new Date(iso);
+    return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function stepState() {
-    const t = computeTargets();
-    Object.keys(NOISE).forEach(k => {
-        const noise = k === "dose" ? NOISE.dose + state.dose * 0.02 : NOISE[k];
-        let v = state[k] + (t[k] - state[k]) * 0.2 + (Math.random() - 0.5) * noise;
-        v = Math.max(LIMITS[k][0], Math.min(LIMITS[k][1], v));
-        state[k] = v;
-    });
-}
-
-/* ---------- 3. REGLAS DE SEVERIDAD ---------- */
+/* ---------- 2. REGLAS DE SEVERIDAD ---------- */
 const RULES = {
     hr:   v => (v < 50 || v > 120) ? 2 : (v < 60 || v > 100) ? 1 : 0,
     bp:   (s, d) => (s >= 140 || d >= 90 || s < 90) ? 2 : (s >= 130 || d >= 85 || s < 100) ? 1 : 0,
@@ -69,75 +64,87 @@ const r1 = v => Math.round(v * 10) / 10;
 
 /* Evalúa con los valores tal como se muestran (redondeados). */
 function evaluate() {
+    const s = state;
+
     return {
-        hr: RULES.hr(r0(state.hr)),
-        bp: RULES.bp(r0(state.sys), r0(state.dia)),
-        spo2: RULES.spo2(r1(state.spo2)),
-        temp: RULES.temp(r1(state.temp)),
-        rr: RULES.rr(r0(state.rr)),
-        co2: RULES.co2(r1(state.co2)),
-        hyd: RULES.hyd(r0(state.hyd)),
-        fat: RULES.fat(r0(state.fat)),
-        cm: RULES.cm(r0(state.cm)),
-        dose: RULES.dose(r0(state.dose))
+        hr: isNum(s.hr) ? RULES.hr(r0(s.hr)) : 0,
+        bp: isNum(s.sys) && isNum(s.dia) ? RULES.bp(r0(s.sys), r0(s.dia)) : 0,
+        spo2: isNum(s.spo2) ? RULES.spo2(r1(s.spo2)) : 0,
+        temp: isNum(s.temp) ? RULES.temp(r1(s.temp)) : 0,
+        rr: isNum(s.rr) ? RULES.rr(r0(s.rr)) : 0,
+        co2: isNum(s.co2) ? RULES.co2(r1(s.co2)) : 0,
+        hyd: isNum(s.hyd) ? RULES.hyd(r0(s.hyd)) : 0,
+        fat: isNum(s.fat) ? RULES.fat(r0(s.fat)) : 0,
+        cm: isNum(s.cm) ? RULES.cm(r0(s.cm)) : 0,
+        dose: isNum(s.dose) ? RULES.dose(r0(s.dose)) : 0
     };
 }
 
-/* ---------- 4. DESCRIPCIÓN DE MÉTRICAS (valor, causa probable, acción) ---------- */
+/* ---------- 3. DESCRIPCIÓN DE MÉTRICAS (valor, causa probable, acción) ---------- */
 const METRIC_INFO = {
     hr: {
-        label: "FREC. CARDÍACA", fmt: () => `${r0(state.hr)} BPM`,
+        label: "FREC. CARDÍACA",
+        fmt: () => isNum(state.hr) ? `${r0(state.hr)} BPM` : "—",
         cause: () => state.hr > 100 ? "Taquicardia: esfuerzo EVA, estrés térmico, deshidratación o hipoxia." : "Frecuencia baja inusual: revisar contacto del sensor y fatiga extrema.",
         action: () => state.hr > 100 ? "Reducir carga de trabajo, hidratar y verificar temperatura y SpO₂; repetir lectura en 5 min." : "Verificar el parche del sensor; si persiste, notificar al oficial médico (CMO)."
     },
     bp: {
-        label: "PRESIÓN ARTERIAL", fmt: () => `${r0(state.sys)}/${r0(state.dia)} mmHg`,
+        label: "PRESIÓN ARTERIAL",
+        fmt: () => isNum(state.sys) && isNum(state.dia) ? `${r0(state.sys)}/${r0(state.dia)} mmHg` : "—",
         cause: () => state.sys < 100 ? "Presión baja: posible deshidratación o desplazamiento de fluidos." : "Presión elevada: sobreesfuerzo, deshidratación, estrés o cambios de fluidos en microgravedad.",
         action: () => state.sys < 100 ? "Hidratar, descansar sentado/anclado y volver a medir." : "Pausar la actividad intensa, respirar con calma y volver a medir en 10 min."
     },
     spo2: {
-        label: "SpO₂", fmt: () => `${r1(state.spo2).toFixed(1)} %`,
+        label: "SpO₂",
+        fmt: () => isNum(state.spo2) ? `${r1(state.spo2).toFixed(1)} %` : "—",
         cause: () => "Saturación baja: posible hipoxia leve (revisar presión/composición de O₂ y sellado del casco).",
         action: () => "Detener esfuerzo, verificar suministro de O₂ y ajuste del casco; notificar al CMO si no sube."
     },
     temp: {
-        label: "TEMPERATURA", fmt: () => `${r1(state.temp).toFixed(1)} °C`,
+        label: "TEMPERATURA",
+        fmt: () => isNum(state.temp) ? `${r1(state.temp).toFixed(1)} °C` : "—",
         cause: () => state.temp < 36 ? "Temperatura baja: pérdida de calor del traje o sensor mal colocado." : "Temperatura alta: estrés térmico (sistema de enfriamiento del traje) o posible respuesta inmunitaria/infecciosa.",
         action: () => state.temp < 36 ? "Revisar aislamiento y calefacción del traje; reabrigar." : "Revisar enfriamiento del traje, hidratar y repetir lectura; si persiste, notificar al CMO."
     },
     rr: {
-        label: "FREC. RESPIRATORIA", fmt: () => `${r0(state.rr)} rpm`,
+        label: "FREC. RESPIRATORIA",
+        fmt: () => isNum(state.rr) ? `${r0(state.rr)} rpm` : "—",
         cause: () => "Respiración fuera de rango: asociada a esfuerzo, CO₂ elevado o hipoxia.",
         action: () => "Reducir esfuerzo y verificar ppCO₂ y SpO₂ del ambiente."
     },
     co2: {
-        label: "ppCO₂", fmt: () => `${r1(state.co2).toFixed(1)} mmHg`,
+        label: "ppCO₂",
+        fmt: () => isNum(state.co2) ? `${r1(state.co2).toFixed(1)} mmHg` : "—",
         cause: () => "CO₂ ambiental elevado: posible falla o saturación del depurador / mala ventilación.",
         action: () => "Verificar depuradores de CO₂ y flujo de aire, reducir esfuerzo y notificar a Control de Misión."
     },
     hyd: {
-        label: "HIDRATACIÓN", fmt: () => `${r0(state.hyd)} %`,
+        label: "HIDRATACIÓN",
+        fmt: () => isNum(state.hyd) ? `${r0(state.hyd)} %` : "—",
         cause: () => "Hidratación insuficiente: ingesta de agua por debajo del protocolo.",
         action: () => "Beber según protocolo, revisar la bolsa de agua del traje y registrar la ingesta."
     },
     fat: {
-        label: "FATIGA", fmt: () => `${r0(state.fat)}/100`,
+        label: "FATIGA",
+        fmt: () => isNum(state.fat) ? `${r0(state.fat)}/100` : "—",
         cause: () => "Fatiga acumulada: carga EVA alta, descanso insuficiente o confinamiento prolongado.",
         action: () => "Reducir carga, programar descanso y ajustar el plan de tareas."
     },
     cm: {
-        label: "CONTRAMEDIDAS", fmt: () => `${r0(state.cm)} %`,
+        label: "CONTRAMEDIDAS",
+        fmt: () => isNum(state.cm) ? `${r0(state.cm)} %` : "—",
         cause: () => "Cumplimiento bajo de ejercicio resistivo: riesgo de pérdida ósea y muscular a largo plazo.",
         action: () => "Reprogramar la sesión de ejercicio y registrar su cumplimiento."
     },
     dose: {
-        label: "TASA DE DOSIS", fmt: () => `${r0(state.dose)} µSv/h`,
+        label: "TASA DE DOSIS",
+        fmt: () => isNum(state.dose) ? `${r0(state.dose)} µSv/h` : "—",
         cause: () => "Tasa de dosis elevada: posible evento de partículas solares (SPE).",
         action: () => "Buscar la zona de mayor blindaje, limitar actividad externa y notificar a Control de Misión."
     }
 };
 
-/* ---------- 5. ZONAS CORPORALES (riesgos NASA de referencia) ---------- */
+/* ---------- 4. ZONAS CORPORALES (riesgos NASA de referencia) ---------- */
 const ZONES = {
     head: {
         code: "01", name: "CABEZA / OJOS", metrics: ["co2", "spo2", "bp"],

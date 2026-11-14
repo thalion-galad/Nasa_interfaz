@@ -1,12 +1,14 @@
 /* =========================================================
    ASTRA HEALTH · MÓDULOS DEL CAJÓN
-   Genera el HTML de cada módulo a partir del estado único.
-   D = severidad "latcheada" de cada métrica (la fija app.js).
+   Genera el HTML de cada módulo a partir de:
+     · state / D        → telemetría y severidad en vivo
+     · backend.cache    → astronauta, historial, alertas,
+                          bitácora e insights (API + SQLite)
    ========================================================= */
 "use strict";
 
 const D = {};                       // severidad mostrada por métrica (0/1/2)
-const eventLog = [];                // bitácora: {time, sev, text}
+const eventLog = [];                // log local de la consola (no se publica)
 const ui = {
     mood: null,                     // autoinforme de ánimo: good | ok | bad
     histRange: "24h",
@@ -44,58 +46,97 @@ function logEvent(sev, text) {
     if (eventLog.length > 40) eventLog.pop();
 }
 
-/* ---------- HISTORIAL (datos simulados reproducibles) ---------- */
-const HIST_RANGES = {
-    "24h": { n: 24, label: "24 H" },
-    "7d":  { n: 7,  label: "7 DÍAS" },
-    "42d": { n: 42, label: "MISIÓN" }
-};
-const HIST_METRICS = {
-    hr:   { label: "FRECUENCIA CARDÍACA", short: "FC",   unit: "BPM", base: BASE.hr,   spread: 6,    lo: 50,   hi: 110, dec: 0, sev: v => RULES.hr(Math.round(v)),                cur: () => state.hr },
-    spo2: { label: "SATURACIÓN SpO₂",     short: "SpO₂", unit: "%",   base: BASE.spo2, spread: 0.8,  lo: 90,   hi: 100, dec: 1, sev: v => RULES.spo2(Math.round(v * 10) / 10),    cur: () => state.spo2 },
-    temp: { label: "TEMPERATURA",         short: "TEMP", unit: "°C",  base: BASE.temp, spread: 0.25, lo: 35.5, hi: 38,  dec: 1, sev: v => RULES.temp(Math.round(v * 10) / 10),    cur: () => state.temp }
-};
+const sevFromApi = level => level === "critical" ? 2 : level === "warning" ? 1 : 0;
 
-function mulberry32(a) {
-    return function () {
-        a |= 0; a = a + 0x6D2B79F5 | 0;
-        let t = Math.imul(a ^ a >>> 15, 1 | a);
-        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-        return ((t ^ t >>> 14) >>> 0) / 4294967296;
-    };
+function fmtDateTime(value) {
+    const date = parseTs(value);
+    return date
+        ? date.toLocaleString("es-PE", { hour12: false })
+        : "—";
 }
 
-function genHistory(range, metric) {
-    const R = HIST_RANGES[range], M = HIST_METRICS[metric];
-    const rnd = mulberry32(range.length * 977 + metric.charCodeAt(0) * 31 + 7);
-    const arr = [];
-    for (let i = 0; i < R.n - 1; i++) {
-        arr.push(M.base + (rnd() - 0.5) * 2 * M.spread + Math.sin(i / (R.n / 6)) * M.spread * 0.3);
-    }
-    arr.push(M.cur());               // el último punto es la lectura actual
-    return arr;
+function moduleHead(kicker, title, badgeHtml) {
+    return `
+        <div class="module-head">
+            <div>
+                <span class="module-kicker">${kicker}</span>
+                <h3>${title}</h3>
+            </div>
+            ${badgeHtml}
+        </div>`;
+}
+
+function emptyPanel(text) {
+    return `
+        <div class="monitor-panel" style="padding:10px">
+            <p class="module-note" style="margin:0">${esc(text)}</p>
+        </div>`;
+}
+
+/* ---------- HISTORIAL (mediciones de la API) ---------- */
+const HIST_RANGES = {
+    "24h": { ms: 24 * 3600 * 1000, label: "24 H" },
+    "7d":  { ms: 7 * 24 * 3600 * 1000, label: "7 DÍAS" },
+    "42d": { ms: 42 * 24 * 3600 * 1000, label: "MISIÓN" }
+};
+
+const HIST_METRICS = {
+    hr:   { label: "FRECUENCIA CARDÍACA", short: "FC",   unit: "BPM", lo: 50,   hi: 110, dec: 0, sev: v => RULES.hr(Math.round(v)) },
+    spo2: { label: "SATURACIÓN SpO₂",     short: "SpO₂", unit: "%",   lo: 90,   hi: 100, dec: 1, sev: v => RULES.spo2(Math.round(v * 10) / 10) },
+    temp: { label: "TEMPERATURA",         short: "TEMP", unit: "°C",  lo: 35.5, hi: 38,  dec: 1, sev: v => RULES.temp(Math.round(v * 10) / 10) }
+};
+
+function historySeries(metric) {
+    const windowMs = HIST_RANGES[ui.histRange].ms;
+    const now = Date.now();
+
+    return (backend.cache.history || [])
+        .map(item => ({ t: parseTs(item.timestamp), v: item[metric] }))
+        .filter(item => isNum(item.v))
+        .filter(item => !item.t || now - item.t.getTime() <= windowMs)
+        .sort((a, b) => (a.t ? a.t.getTime() : 0) - (b.t ? b.t.getTime() : 0))
+        .map(item => item.v);
 }
 
 function htmlHistory() {
     const M = HIST_METRICS[ui.histMetric];
-    const data = genHistory(ui.histRange, ui.histMetric);
-    const min = Math.min(...data), max = Math.max(...data);
-    const avg = data.reduce((a, b) => a + b, 0) / data.length;
-    const current = data[data.length - 1];
-    const curSev = M.sev(current);
-    const f = v => v.toFixed(M.dec);
+    const data = historySeries(ui.histMetric);
+    const shown = data.length > 60 ? data.slice(-60) : data;
 
     const rangeTabs = Object.keys(HIST_RANGES).map(k =>
         `<button type="button" class="tab-btn ${k === ui.histRange ? "is-on" : ""}" data-hist-range="${k}" aria-pressed="${k === ui.histRange}">${HIST_RANGES[k].label}</button>`).join("");
     const metricTabs = Object.keys(HIST_METRICS).map(k =>
         `<button type="button" class="tab-btn ${k === ui.histMetric ? "is-on" : ""}" data-hist-metric="${k}" aria-pressed="${k === ui.histMetric}">${HIST_METRICS[k].short}</button>`).join("");
 
-    const bars = data.map((v, i) => {
+    const tabs = `
+        <div class="module-section-title"><span>RANGO TEMPORAL</span><span>${HIST_RANGES[ui.histRange].label}</span></div>
+        <div class="tab-row" role="group" aria-label="Rango temporal">${rangeTabs}</div>
+
+        <div class="module-section-title"><span>PARÁMETRO</span><span>${data.length} MUESTRAS</span></div>
+        <div class="tab-row" role="group" aria-label="Parámetro">${metricTabs}</div>`;
+
+    if (shown.length === 0) {
+        return moduleHead("02 / HISTORIAL", "Historial y línea base",
+            `<span class="badge-status" ${sevStyle(1)}>SIN DATOS</span>`) +
+            `<p class="module-intro">Evolución de tus parámetros según las mediciones persistidas en SQLite.</p>` +
+            tabs +
+            emptyPanel("No hay mediciones de este parámetro en el periodo seleccionado. Cambia el rango o registra nuevas mediciones.") +
+            `<p class="module-note">* Historial servido por GET /api/measurements.</p>`;
+    }
+
+    const min = Math.min(...shown), max = Math.max(...shown);
+    const avg = shown.reduce((a, b) => a + b, 0) / shown.length;
+    const current = shown[shown.length - 1];
+    const curSev = M.sev(current);
+    const f = v => v.toFixed(M.dec);
+
+    const bars = shown.map((v, i) => {
         const h = Math.max(4, pct(v, M.lo, M.hi));
-        const last = i === data.length - 1;
-        return `<div class="hist-bar ${last ? "now" : ""}" style="height:${h.toFixed(1)}%;--c:${sevColor(M.sev(v))}" title="${last ? "Ahora" : "Punto " + (i + 1)}: ${f(v)} ${M.unit}"></div>`;
+        const last = i === shown.length - 1;
+        return `<div class="hist-bar ${last ? "now" : ""}" style="height:${h.toFixed(1)}%;--c:${sevColor(M.sev(v))}" title="${last ? "Ahora" : "Muestra " + (i + 1)}: ${f(v)} ${M.unit}"></div>`;
     }).join("");
-    const baseBottom = pct(M.base, M.lo, M.hi);
+
+    const baseBottom = pct(avg, M.lo, M.hi);
 
     const stats = [["MÍNIMO", min], ["PROMEDIO", avg], ["MÁXIMO", max], ["ACTUAL", current]]
         .map(([label, v], i) => `
@@ -105,45 +146,41 @@ function htmlHistory() {
             </div>`).join("");
 
     const delta = current - avg;
-    const stable = Math.abs(delta) < M.spread * 0.2;
+    const stable = Math.abs(delta) < (max - min) * 0.1;
     const trendLabel = stable ? "TENDENCIA ESTABLE" : delta > 0 ? "TENDENCIA AL ALZA" : "TENDENCIA A LA BAJA";
     const trendText = stable
         ? `La lectura actual se mantiene cerca del promedio del periodo (${f(avg)} ${M.unit}).`
         : `La lectura actual está ${Math.abs(delta).toFixed(M.dec)} ${M.unit} ${delta > 0 ? "por encima" : "por debajo"} del promedio del periodo.`;
 
-    return `
-        <div class="module-head">
-            <div>
-                <span class="module-kicker">02 / HISTORIAL</span>
-                <h3>Historial y línea base</h3>
-            </div>
-            <span class="badge-status" ${sevStyle(curSev)}>${SEV_LABEL[curSev]}</span>
-        </div>
-        <p class="module-intro">Evolución de tus parámetros durante el periodo seleccionado. La línea punteada marca tu referencia personal.</p>
-
-        <div class="module-section-title"><span>RANGO TEMPORAL</span><span>${HIST_RANGES[ui.histRange].label}</span></div>
-        <div class="tab-row" role="group" aria-label="Rango temporal">${rangeTabs}</div>
-
-        <div class="module-section-title"><span>PARÁMETRO</span><span>${data.length} MUESTRAS</span></div>
-        <div class="tab-row" role="group" aria-label="Parámetro">${metricTabs}</div>
-
-        <div class="stat-grid">${stats}</div>
+    return moduleHead("02 / HISTORIAL", "Historial y línea base",
+        `<span class="badge-status" ${sevStyle(curSev)}>${SEV_LABEL[curSev]}</span>`) +
+        `<p class="module-intro">Evolución de tus parámetros según las mediciones persistidas en SQLite. La línea punteada marca el promedio del periodo.</p>` +
+        tabs +
+        `<div class="stat-grid">${stats}</div>
 
         <div class="monitor-panel" style="padding:8px">
-            <div class="monitor-header"><span>${M.label}</span><span class="blue-text">● BASE ${f(M.base)} ${M.unit}</span></div>
+            <div class="monitor-header"><span>${M.label}</span><span class="blue-text">● PROMEDIO ${f(avg)} ${M.unit}</span></div>
             <div class="hist-chart">${bars}<div class="hist-base" style="bottom:calc(${baseBottom.toFixed(1)}% * .945)"></div></div>
-            <div class="chart-legend"><span><i></i> LECTURA ACTUAL</span><span><i class="lg-base"></i> LÍNEA BASE PERSONAL</span></div>
+            <div class="chart-legend"><span><i></i> LECTURA ACTUAL</span><span><i class="lg-base"></i> PROMEDIO DEL PERIODO</span></div>
         </div>
 
         <div class="trend-note" ${sevStyle(curSev)}>
             <b>${trendLabel}</b>
             <span>${trendText}</span>
         </div>
-        <p class="module-note">* Datos históricos simulados. El último punto (con borde blanco) es la lectura actual.</p>`;
+        <p class="module-note">* Últimas ${shown.length} de ${data.length} mediciones del periodo. Fuente: GET /api/measurements.</p>`;
 }
 
 /* ---------- MONITOREO ---------- */
 function htmlMonitoring() {
+    if (!state.ready) {
+        return moduleHead("01 / MONITOREO", "Monitoreo en tiempo real",
+            `<span class="badge-status" ${sevStyle(1)}>SIN DATOS</span>`) +
+            `<p class="module-intro">Indicadores fisiológicos y ambientales leídos de la base de datos.</p>` +
+            emptyPanel("Todavía no hay telemetría. La consola mostrará los valores en cuanto se persista una medición.") +
+            `<p class="module-note">* Fuente: WebSocket /telemetry y REST /api/measurements.</p>`;
+    }
+
     const groups = [
         ["SIGNOS VITALES", [
             ["hr", "FRECUENCIA CARDÍACA", "BPM", () => r0(state.hr)],
@@ -165,58 +202,78 @@ function htmlMonitoring() {
 
     const worst = Math.max(0, ...Object.keys(METRIC_INFO).map(k => D[k] || 0));
     const body = groups.map(([title, rows]) => `
-        <div class="module-section-title"><span>${title}</span><span>TIEMPO REAL</span></div>
+        <div class="module-section-title"><span>${title}</span><span>LEÍDO DE LA BD</span></div>
         <div class="metric-list">
             ${rows.map(([k, label, unit, val]) => `
                 <div class="metric-line" ${sevStyle(D[k] || 0)}>
                     <div class="ml-label">
                         <b>${label}</b>
-                        <small>${SEV_LABEL[D[k] || 0]} · HARDWARE VIRTUAL</small>
+                        <small>${SEV_LABEL[D[k] || 0]} · MEDICIÓN #${state.measurementId ?? "—"}</small>
                     </div>
                     <div class="ml-value">${segVal(val(), unit)}</div>
                 </div>`).join("")}
         </div>`).join("");
 
-    return `
-        <div class="module-head">
-            <div>
-                <span class="module-kicker">01 / MONITOREO</span>
-                <h3>Monitoreo en tiempo real</h3>
-            </div>
-            <span class="badge-status" ${sevStyle(worst)}>${SEV_LABEL[worst]}</span>
-        </div>
-        <p class="module-intro">Indicadores fisiológicos y ambientales del tripulante AST-001. El color indica el estado: verde nominal, ámbar precaución y rojo alerta.</p>
-        ${body}
-        <p class="module-note">* Todos los valores corresponden a hardware virtual simulado.</p>`;
+    return moduleHead("01 / MONITOREO", "Monitoreo en tiempo real",
+        `<span class="badge-status" ${sevStyle(worst)}>${SEV_LABEL[worst]}</span>`) +
+        `<p class="module-intro">Indicadores fisiológicos y ambientales del tripulante. El color indica el estado: verde nominal, ámbar precaución y rojo alerta.</p>` +
+        body +
+        `<p class="module-note">* Origen: ${esc(state.source || "—")} · ${esc(fmtDateTime(state.timestamp))}.</p>`;
 }
 
 /* ---------- ALERTAS Y BITÁCORA ---------- */
 function htmlAlerts() {
-    const active = Object.keys(METRIC_INFO).filter(k => (D[k] || 0) > 0).sort((a, b) => D[b] - D[a]);
-    const cards = active.length
-        ? active.map(k => `
-            <div class="alert-card" ${sevStyle(D[k])}>
-                <small>${SEV_LABEL[D[k]]} — ${METRIC_INFO[k].label}</small>
-                <h4>${METRIC_INFO[k].fmt()}</h4>
-                <p>${esc(METRIC_INFO[k].cause())}</p>
-                <p><b>Acción (sim):</b> ${esc(METRIC_INFO[k].action())}</p>
-            </div>`).join("")
-        : `<div class="alert-card" ${sevStyle(0)}><small>INFORMACIÓN</small><h4>SIN ALERTAS ACTIVAS</h4><p>Todos los parámetros están dentro del rango nominal.</p></div>`;
-    const log = eventLog.slice(0, 14).map(e => `<li><time>${e.time}</time>${esc(e.text)}</li>`).join("");
-    const worst = active.length ? Math.max(...active.map(k => D[k])) : 0;
-    return `
-        <div class="module-head">
-            <div>
-                <span class="module-kicker">03 / ALERTAS</span>
-                <h3>Alertas y bitácora</h3>
-            </div>
-            <span class="badge-status" ${sevStyle(worst)}>${active.length ? `${active.length} ACTIVA${active.length > 1 ? "S" : ""}` : "SIN ALERTAS"}</span>
-        </div>
-        ${ui.alerts.enabled ? "" : `<div class="settings-status" ${sevStyle(1)}><span class="status-dot"></span><span>Notificaciones <b>SUSPENDIDAS</b> desde Ajustes. Las alertas se siguen calculando y registrando en la bitácora.</span></div>`}
-        <div class="module-section-title"><span>ALERTAS ACTIVAS</span><span>${active.length}</span></div>
-        ${cards}
-        <div class="module-section-title"><span>BITÁCORA</span><span>ÚLTIMOS 14 EVENTOS</span></div>
-        <ul class="log-list">${log || "<li>Sin eventos.</li>"}</ul>
+    const derived = Object.keys(METRIC_INFO)
+        .filter(k => (D[k] || 0) > 0)
+        .sort((a, b) => D[b] - D[a]);
+
+    const dbAlerts = backend.cache.alerts || [];
+    const logs = backend.cache.logs || [];
+
+    const derivedCards = state.ready
+        ? (derived.length
+            ? derived.map(k => `
+                <div class="alert-card" ${sevStyle(D[k])}>
+                    <small>${SEV_LABEL[D[k]]} — ${METRIC_INFO[k].label}</small>
+                    <h4>${METRIC_INFO[k].fmt()}</h4>
+                    <p>${esc(METRIC_INFO[k].cause())}</p>
+                    <p><b>Acción sugerida:</b> ${esc(METRIC_INFO[k].action())}</p>
+                </div>`).join("")
+            : `<div class="alert-card" ${sevStyle(0)}><small>INFORMACIÓN</small><h4>SIN ALERTAS DERIVADAS</h4><p>Todos los parámetros de la última medición están dentro del rango nominal.</p></div>`)
+        : emptyPanel("Sin telemetría: no se pueden evaluar alertas.");
+
+    const dbCards = dbAlerts.length
+        ? dbAlerts.map(a => {
+            const sev = sevFromApi(a.severity);
+            return `
+                <div class="alert-card" ${sevStyle(sev)}>
+                    <small>${SEV_LABEL[sev]} — ${esc(a.metric)}${a.zone ? " · " + esc(a.zone).toUpperCase() : ""}</small>
+                    <h4>${esc(a.message)}</h4>
+                    <p>${esc(a.suggested_action || "Sin acción sugerida registrada.")}</p>
+                    <p><b>Registrada:</b> ${esc(fmtDateTime(a.created_at))} · ${a.acknowledged ? "RECONOCIDA" : "PENDIENTE"}</p>
+                    ${a.acknowledged ? "" : `<button class="hw-btn" type="button" data-ack-alert="${a.id}">RECONOCER</button>`}
+                </div>`;
+        }).join("")
+        : emptyPanel("No hay alertas registradas por la API.");
+
+    const logItems = logs.length
+        ? logs.slice(0, 14).map(l => `<li><time>${esc(fmtDateTime(l.timestamp))}</time>${esc(l.zone)} — ${esc(l.action || "Sin acción registrada")}</li>`).join("")
+        : "<li>Sin registros en la bitácora.</li>";
+
+    const worst = derived.length ? Math.max(...derived.map(k => D[k])) : 0;
+
+    return moduleHead("03 / ALERTAS", "Alertas y bitácora",
+        `<span class="badge-status" ${sevStyle(worst)}>${derived.length ? `${derived.length} ACTIVA${derived.length > 1 ? "S" : ""}` : "SIN ALERTAS"}</span>`) +
+        `${ui.alerts.enabled ? "" : `<div class="settings-status" ${sevStyle(1)}><span class="status-dot"></span><span>Notificaciones <b>SUSPENDIDAS</b> desde Ajustes. Las alertas se siguen evaluando y registrando.</span></div>`}
+
+        <div class="module-section-title"><span>ALERTAS DERIVADAS DE LA TELEMETRÍA</span><span>${derived.length}</span></div>
+        ${derivedCards}
+
+        <div class="module-section-title"><span>ALERTAS REGISTRADAS (API)</span><span>${dbAlerts.length}</span></div>
+        ${dbCards}
+
+        <div class="module-section-title"><span>BITÁCORA</span><span>GET /api/logs</span></div>
+        <ul class="log-list">${logItems}</ul>
         <p class="module-note">* Sugerencias educativas. En una situación real se siguen los protocolos de la misión y se contacta al oficial médico (CMO) o al cirujano de vuelo.</p>`;
 }
 
@@ -224,14 +281,14 @@ function htmlAlerts() {
 function wellbeingModel() {
     const fat = state.fat > 70 ? ["ALTA", 2] : state.fat >= 40 ? ["MODERADA", 1] : ["BAJA", 0];
     const moodPenalty = ui.mood === "bad" ? 25 : ui.mood === "ok" ? 10 : 0;
-    const stressScore = state.evaLoad * 0.4 + Math.max(0, state.hr - 80) * 0.8 + Math.max(0, state.co2 - 2.5) * 8 + moodPenalty;
+    const stressScore = (state.evaLoad || 0) * 0.4 + Math.max(0, (state.hr || 0) - 80) * 0.8 + Math.max(0, (state.co2 || 0) - 2.5) * 8 + moodPenalty;
     const stress = stressScore < 25 ? ["BAJO", 0] : stressScore < 50 ? ["MODERADO", 1] : ["ALTO", 2];
-    const score = Math.round(clamp(100 - state.fat * 0.25 - stressScore * 0.3 - (100 - state.hyd) * 0.2 - (100 - state.cm) * 0.15, 0, 100));
+    const score = Math.round(clamp(100 - (state.fat || 0) * 0.25 - stressScore * 0.3 - (100 - (state.hyd || 0)) * 0.2 - (100 - (state.cm || 0)) * 0.15, 0, 100));
 
-    const exercise = Math.round(clamp(state.cm * 0.72 - state.evaLoad * 0.06, 0, 120));
-    const sleep = clamp(8.4 - state.fat * 0.028 - Math.max(0, state.hr - 80) * 0.008, 4.5, 9);
-    const water = clamp(1.4 + state.hyd / 100 * 1.6, 1.2, 3.4);
-    const kcal = Math.round((1850 + state.cm * 4.2 - state.fat * 2.1) / 10) * 10;
+    const exercise = Math.round(clamp((state.cm || 0) * 0.72 - (state.evaLoad || 0) * 0.06, 0, 120));
+    const sleep = clamp(8.4 - (state.fat || 0) * 0.028 - Math.max(0, (state.hr || 0) - 80) * 0.008, 4.5, 9);
+    const water = clamp(1.4 + (state.hyd || 0) / 100 * 1.6, 1.2, 3.4);
+    const kcal = Math.round((1850 + (state.cm || 0) * 4.2 - (state.fat || 0) * 2.1) / 10) * 10;
     const mood = { good: ["BIEN", 0], ok: ["REGULAR", 1], bad: ["MAL", 2] }[ui.mood] || ["SIN REPORTE", 0];
 
     return {
@@ -243,31 +300,47 @@ function wellbeingModel() {
 }
 
 function htmlWellbeing() {
+    if (!state.ready) {
+        return moduleHead("04 / BIENESTAR", "Bienestar y descanso",
+            `<span class="badge-status" ${sevStyle(1)}>SIN DATOS</span>`) +
+            emptyPanel("Se necesita al menos una medición para estimar el estado de bienestar.") +
+            `<p class="module-note">* Fuente: telemetría y API.</p>`;
+    }
+
     const W = wellbeingModel();
+    const insights = backend.cache.insights || [];
+
     const moods = [["good", "BIEN"], ["ok", "REGULAR"], ["bad", "MAL"]].map(([id, label]) =>
         `<button type="button" class="hw-btn" data-mood="${id}" aria-pressed="${ui.mood === id}">${label}</button>`).join(" ");
     const bar = (value, max) => Math.min(100, value / max * 100).toFixed(0);
 
-    return `
-        <div class="module-head">
-            <div>
-                <span class="module-kicker">04 / BIENESTAR</span>
-                <h3>Bienestar y descanso</h3>
-            </div>
-            <span class="badge-status" ${sevStyle(W.scoreSev)}>${SEV_LABEL[W.scoreSev]}</span>
-        </div>
-        <p class="module-intro">El aislamiento y el confinamiento están entre los riesgos de mayor prioridad de la NASA en misiones largas. Revisa tus hábitos diarios de recuperación.</p>
+    const insightCards = insights.length
+        ? insights.slice(0, 6).map(i => {
+            const sev = sevFromApi(i.risk_level);
+            return `
+                <div class="alert-card" ${sevStyle(sev)}>
+                    <small>${SEV_LABEL[sev]} — ${esc(i.category).toUpperCase()}</small>
+                    <h4>${esc(i.description)}</h4>
+                    <p><b>Recomendación:</b> ${esc(i.recommendation)}</p>
+                    <p><b>Generado:</b> ${esc(fmtDateTime(i.timestamp))}</p>
+                </div>`;
+        }).join("")
+        : emptyPanel("El motor de análisis todavía no ha publicado insights.");
+
+    return moduleHead("04 / BIENESTAR", "Bienestar y descanso",
+        `<span class="badge-status" ${sevStyle(W.scoreSev)}>${SEV_LABEL[W.scoreSev]}</span>`) +
+        `<p class="module-intro">El aislamiento y el confinamiento están entre los riesgos de mayor prioridad de la NASA en misiones largas. Revisa tus hábitos diarios de recuperación.</p>
 
         <div class="wb-score" ${sevStyle(W.scoreSev)}>
             ${segVal(W.score, "/ 100", "seg-lg")}
             <div class="wb-score-copy">
                 <strong>ÍNDICE GLOBAL DE BIENESTAR</strong>
-                <small>Estrés estimado: ${W.stress[0]} · Fatiga: ${W.fat[0]} · Día 042</small>
+                <small>Estrés estimado: ${W.stress[0]} · Fatiga: ${W.fat[0]} · Día ${backend.cache.astronaut?.mission_day ?? "—"}</small>
                 <div class="seg-bar"><div class="seg-fill" style="width:${W.score}%"></div></div>
             </div>
         </div>
 
-        <div class="module-section-title"><span>HÁBITOS Y RECUPERACIÓN</span><span>REGISTRO DIARIO</span></div>
+        <div class="module-section-title"><span>HÁBITOS Y RECUPERACIÓN</span><span>MEDICIÓN ACTUAL</span></div>
         <div class="wb-list">
 
             <article class="wb-card" ${sevStyle(W.exerciseSev)}>
@@ -317,21 +390,34 @@ function htmlWellbeing() {
                     <div class="wb-value"><span class="wb-mood">${W.mood[0]}</span></div>
                 </div>
                 <div class="wb-moods" role="group" aria-label="Reportar estado de ánimo">${moods}</div>
-                <div class="wb-foot"><span>ESTRÉS PERCIBIDO: ${W.stress[0]}</span><span>SE REGISTRA EN BITÁCORA</span></div>
+                <div class="wb-foot"><span>ESTRÉS PERCIBIDO: ${W.stress[0]}</span><span>SE REGISTRA EN LA CONSOLA</span></div>
             </article>
 
         </div>
+
+        <div class="module-section-title"><span>ANÁLISIS ASISTIDO</span><span>GET /api/insights</span></div>
+        ${insightCards}
+
         <p class="module-note">* Estimación simulada a partir de fatiga, FC, CO₂, carga EVA, hidratación y tu autoinforme. No es un diagnóstico.</p>`;
 }
 
 /* ---------- PERFIL ---------- */
 function htmlProfile() {
+    const a = backend.cache.astronaut;
+
+    if (!a) {
+        return moduleHead("05 / PERFIL", "Perfil del tripulante",
+            `<span class="badge-status" ${sevStyle(1)}>SIN DATOS</span>`) +
+            emptyPanel("No hay tripulantes registrados en /api/astronauts.") +
+            `<p class="module-note">* La ficha se sirve desde la base de datos.</p>`;
+    }
+
     const anyAlert = Object.keys(METRIC_INFO).some(k => (D[k] || 0) > 0);
     const worst = Math.max(0, ...Object.keys(METRIC_INFO).map(k => D[k] || 0));
-    const medicalStatus = anyAlert ? "REVISIÓN REQUERIDA (SIM)" : "APTO PARA EVA (SIM)";
-    const restriction = anyAlert ? "REVISIÓN MÉDICA REQUERIDA (SIM)" : "SIN RESTRICCIONES EVA (SIM)";
-    const missionName = esc(String(ui.mission.name).toUpperCase()) || "ARTEMIS-SIM";
-    const missionDuration = Math.max(1, Math.min(3650, Math.round(Number(ui.mission.duration) || 180)));
+    const medicalStatus = anyAlert ? "REVISIÓN REQUERIDA" : "APTO PARA EVA";
+    const restriction = anyAlert ? "REVISIÓN MÉDICA REQUERIDA" : "SIN RESTRICCIONES EVA";
+    const missionName = esc(String(a.mission || "").toUpperCase()) || "—";
+    const day = String(a.mission_day ?? "—").padStart(3, "0");
 
     const section = (title, rows) => `
         <section class="info-section">
@@ -352,42 +438,37 @@ function htmlProfile() {
                 <span>FOTO SIM</span>
             </div>
             <div class="profile-id">
-                <span class="module-kicker">05 / PERFIL · AST-001</span>
-                <h3>ANDRÉS RÍOS VEGA</h3>
-                <p>Comandante · ${missionName} · D042</p>
+                <span class="module-kicker">05 / PERFIL · ${esc(a.code)}</span>
+                <h3>${esc(String(a.name).toUpperCase())}</h3>
+                <p>${esc(a.role)} · ${missionName} · D${day}</p>
                 <span class="badge-status" ${sevStyle(worst)}>${medicalStatus}</span>
             </div>
         </div>
 
         ${section("INFORMACIÓN PERSONAL", [
-            ["Código de astronauta", "AST-001"],
-            ["Nombres y apellidos", "ANDRÉS RÍOS VEGA"],
-            ["Edad", "41 AÑOS"],
-            ["Sexo", "MASCULINO"],
-            ["Nacionalidad", "PERUANA"],
-            ["Fotografía", "REGISTRADA · CREW-ART-001 (SIM)"],
-            ["Identificador de tripulación", "CREW-ART-001"]
+            ["Código de astronauta", esc(a.code)],
+            ["Nombres y apellidos", esc(String(a.name).toUpperCase())],
+            ["Edad", `${a.age} AÑOS`],
+            ["Grupo sanguíneo", esc(a.blood_type)],
+            ["Estatura", `${a.height_cm} CM`],
+            ["Peso", `${a.weight_kg} KG`],
+            ["Identificador de tripulación", `CREW-${esc(a.code)}`]
         ])}
 
         ${section("INFORMACIÓN DE MISIÓN", [
             ["Nombre de misión", missionName],
-            ["Rol asignado", "COMANDANTE"],
-            ["Fecha de inicio", "02 OCT 2026"],
-            ["Duración prevista", `${missionDuration} DÍAS`],
-            ["Día actual de misión", "D042"],
+            ["Rol asignado", esc(String(a.role).toUpperCase())],
+            ["Día actual de misión", `D${day}`],
             ["Estado de participación", "ACTIVA"]
         ])}
 
         ${section("INFORMACIÓN MÉDICA", [
-            ["Grupo sanguíneo", "O+"],
-            ["Antecedentes médicos relevantes", "SIN ANTECEDENTES CARDIOPULMONARES (SIM)"],
-            ["Alergias", "NINGUNA CONOCIDA (SIM)"],
-            ["Medicamentos registrados", "NINGUNO (SIM)"],
+            ["Estado registrado", esc(String(a.status).toUpperCase())],
             ["Restricciones médicas", restriction],
-            ["Evaluaciones médicas previas", "3 EVALUACIONES · ÚLTIMA 10 NOV 2026"]
+            ["Origen de la ficha", "GET /api/astronauts/" + a.id]
         ])}
 
-        <p class="module-note">* Ficha y fotografía simuladas con fines educativos. No contienen datos médicos reales.</p>`;
+        <p class="module-note">* Ficha servida desde la base de datos. No contiene datos médicos reales.</p>`;
 }
 
 /* ---------- AJUSTES ---------- */
@@ -439,6 +520,7 @@ function htmlSettings() {
     const link = LINK_MODES[ui.mission.link] || LINK_MODES.nominal;
     const sync = SYNC_MODES[ui.mission.sync] || SYNC_MODES.auto;
     const duration = Math.max(1, Math.min(3650, Math.round(Number(ui.mission.duration) || 1)));
+    const day = String(backend.cache.astronaut?.mission_day ?? 42).padStart(3, "0");
 
     const alertNote = ui.alerts.enabled
         ? `Prioridad <b>${priority.label}</b> · Métodos: <b>${methodText}</b>.`
@@ -447,15 +529,9 @@ function htmlSettings() {
         ? `Se notificará por: <b>${methodText}</b>.`
         : `Sin métodos activos: las alertas no se mostrarán ni registrarán.`;
 
-    return `
-        <div class="module-head">
-            <div>
-                <span class="module-kicker">06 / AJUSTES</span>
-                <h3>Configuración del sistema</h3>
-            </div>
-            <span class="badge-status" ${sevStyle(0)}>LOCAL</span>
-        </div>
-        <p class="module-intro">Ajusta el comportamiento de las alertas y los parámetros operativos de la misión. Los cambios se aplican solo a esta consola simulada.</p>
+    return moduleHead("06 / AJUSTES", "Configuración del sistema",
+        `<span class="badge-status" ${sevStyle(0)}>LOCAL</span>`) +
+        `<p class="module-intro">Ajusta el comportamiento de las alertas y los parámetros operativos de la consola. Los datos clínicos se leen de la API; esta configuración es local.</p>
 
         <div class="module-section-title"><span>CONFIGURACIÓN DE ALERTAS</span><span>${ui.alerts.enabled ? "ACTIVAS" : "SUSPENDIDAS"}</span></div>
         <div class="settings-panel">
@@ -477,7 +553,7 @@ function htmlSettings() {
             </div>
         </div>
 
-        <div class="module-section-title"><span>CONFIGURACIÓN DE MISIÓN</span><span>D042 / ${duration} DÍAS</span></div>
+        <div class="module-section-title"><span>CONFIGURACIÓN DE MISIÓN</span><span>D${day} / ${duration} DÍAS</span></div>
         <div class="settings-panel">
             ${missionField("name", "NOMBRE DE MISIÓN", ui.mission.name, "text", 'autocomplete="off" spellcheck="false"')}
             ${missionField("id", "IDENTIFICADOR DE MISIÓN", ui.mission.id, "text", 'autocomplete="off" spellcheck="false"')}
@@ -491,7 +567,7 @@ function htmlSettings() {
             <p class="settings-hint">${sync.detail}</p>
             <div class="settings-readout">
                 <span>DÍA ACTUAL / DURACIÓN</span>
-                <span class="seg-readout"><span class="seg seg-sm">042</span><span class="seg-unit">/ <span data-duration-out>${String(duration).padStart(3, "0")}</span> D</span></span>
+                <span class="seg-readout"><span class="seg seg-sm">${day}</span><span class="seg-unit">/ <span data-duration-out>${String(duration).padStart(3, "0")}</span> D</span></span>
             </div>
         </div>
 
@@ -514,14 +590,14 @@ function htmlSettings() {
         ${fxToggle("glow", "Resplandor neón", ui.fx.glow)}
         ${fxToggle("flicker", "Parpadeo CRT", ui.fx.flicker)}
 
-        <div class="module-section-title"><span>SISTEMA</span><span>v1.3.0</span></div>
+        <div class="module-section-title"><span>SISTEMA</span><span>v1.4.0</span></div>
         <div class="window-data">
-            <div>VERSIÓN HARDWARE: <strong>v1.3.0-WINAMP</strong></div>
-            <div>ENTORNO: <strong>SIMULACIÓN VIRTUAL</strong></div>
-            <div>FRECUENCIA TRAMA ECG: <strong>250 Hz (SIM)</strong></div>
-            <div>ESCENARIO ACTIVO: <strong>${SCENARIOS[state.scenario].label}</strong></div>
+            <div>VERSIÓN: <strong>v1.4.0-API</strong></div>
+            <div>ALMACENAMIENTO: <strong>SQLite · astra_health.db</strong></div>
+            <div>TELEMETRÍA: <strong>REST + WebSocket</strong></div>
+            <div>ESCENARIO ACTIVO: <strong>${esc(String(state.scenario || "SIN DATOS").toUpperCase())}</strong></div>
         </div>
-        <p class="module-note">* Configuración local de demostración. No se envían notificaciones ni datos reales.</p>`;
+        <p class="module-note">* Configuración local de la consola. Los indicadores clínicos provienen de la base de datos.</p>`;
 }
 
 const MODULES = {
